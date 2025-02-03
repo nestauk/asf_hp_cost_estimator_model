@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 packages = ["asf_hp_cost_estimator_model"]
 
 [project]
-name = "Heat pump cost estimator"
+name = "heat_pump_cost_estimator"
 version = "0.1.0"
 description = "Training and evaluating a model for estimating the cost of an air source heat pump."
 authors = [{name = "Nesta"}]
