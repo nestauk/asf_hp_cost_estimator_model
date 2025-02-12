@@ -1,0 +1,73 @@
+# Paths
+postcode_path: "inputs/postcodes/"
+regions_path: "inputs/regions.csv"
+postcode_regions_path: "outputs/postcode_regions.csv"
+staging_folder: "outputs/models/staging/"
+model_pickle_local_path: "outputs/models/staging/model.pickle"
+
+# Fields in the MCS-EPC data that we're importing
+relevant_mcs_epc_fields:
+  [
+    "original_mcs_index",
+    "commission_date",
+    "postcode",
+    "tech_type",
+    "cost",
+    "cluster",
+    "original_epc_index",
+    "installation_type",
+    "TOTAL_FLOOR_AREA",
+    "CONSTRUCTION_AGE_BAND",
+    "NUMBER_HABITABLE_ROOMS",
+    "TENURE",
+    "TRANSACTION_TYPE",
+    "BUILT_FORM",
+    "PROPERTY_TYPE",
+    "INSPECTION_DATE",
+  ]
+
+# Exlcusion criteria
+hp_when_built_threshold: 365
+exclusion_criteria:
+  cost_lower_bound: 3500
+  cost_upper_bound: 25000
+  NUMBER_HABITABLE_ROOMS_lower_bound: 2
+  NUMBER_HABITABLE_ROOMS_upper_bound: 8
+  TOTAL_FLOOR_AREA_lower_bound: 20
+  TOTAL_FLOOR_AREA_upper_bound: 500
+  PROPERTY_TYPE_allowed_list: ["House", "Bungalow"]
+min_date: "2007-01-01"
+
+# Date from when we double the cost model weights
+date_double_weights: "2020-01-01"
+
+# Model features - numeric and categorical
+numeric_features: ["n_days", "TOTAL_FLOOR_AREA", "NUMBER_HABITABLE_ROOMS"]
+
+# since we have dummies, we don't need all of them
+categorical_features: [
+    "BUILT_FORM_detached",
+    #'BUILT_FORM_end-terrace',
+    "BUILT_FORM_mid-terrace",
+    "BUILT_FORM_semi-detached",
+    "PROPERTY_TYPE_Bungalow",
+    #'PROPERTY_TYPE_House',
+    #'CONSTRUCTION_AGE_BAND_2007 onwards',
+    "CONSTRUCTION_AGE_BAND_between_1930_1966",
+    "CONSTRUCTION_AGE_BAND_between_1965_1983",
+    "CONSTRUCTION_AGE_BAND_pre-1929",
+    "region_name_east_midlands",
+    "region_name_east_of_england",
+    "region_name_london",
+    "region_name_north_east",
+    "region_name_north_west",
+    "region_name_scotland",
+    "region_name_south_east",
+    "region_name_south_west",
+    "region_name_wales",
+    #'region_name_yorkshire_and_the_humber',
+    "region_name_west_midlands",
+  ]
+
+# Model target feature
+target_feature: "cost"
