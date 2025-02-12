@@ -251,16 +251,15 @@ def add_n_days_col(mcs_epc_data: pd.DataFrame, min_date: str) -> pd.DataFrame:
 # Need dummy variables to flag when a variable is in one of several categories
 # (e.g. construction age bands such as "pre-1929") so easier to dummify variables
 # manually rather than include this step as part of the modelling pipeline
-def dummify_variables(mcs_epc_data):
+def dummify_variables(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     """
     Transform columns in data by dummifying according to dictionary.
 
     Args:
-        mcs_epc_data (Dataframe): Dataframe containing keys of var_dict as columns.
-        dummy_variables (dict): Dictionary of columns to new column values.
+        mcs_epc_data (pd.Dataframe): Dataframe containing keys of var_dict as columns.
 
     Returns:
-        Dataframe: Dataframe with columns dummified.
+        pd.Dataframe: Dataframe with columns dummified.
     """
 
     age_bands_mapping = {
@@ -335,7 +334,7 @@ def process_data_before_modelling(
         min_date (str, optional): Minimum date to calculate days elapsed from.
 
     Returns:
-        Dataframe: Suitable MCS-EPC data.
+        pd.Dataframe: Suitable MCS-EPC data.
     """
     mcs_epc_data = remove_properties_with_hp_when_built(
         mcs_epc_data, hp_when_built_threshold
