@@ -4,6 +4,7 @@ regions_path: "inputs/regions.csv"
 postcode_regions_path: "outputs/postcode_regions.csv"
 staging_folder: "outputs/models/staging/"
 model_pickle_local_path: "outputs/models/staging/model.pickle"
+model_evaluation_folder: "outputs/model_evaluation/"
 
 # Fields in the MCS-EPC data that we're importing
 relevant_mcs_epc_fields:
