@@ -71,3 +71,6 @@ categorical_features: [
 
 # Model target feature
 target_feature: "cost"
+
+# K-fold cross validation
+kfold_splits: 5
