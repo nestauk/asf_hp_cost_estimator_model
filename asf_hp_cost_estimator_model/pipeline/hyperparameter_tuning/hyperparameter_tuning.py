@@ -68,7 +68,7 @@ def set_data_parameters_to_tune(installations_data: pd.DataFrame) -> dict:
             (
                 np.nanpercentile(installations_data["cost"], 1),
                 np.nanpercentile(installations_data["cost"], 99),
-            ),  # 1st and 93*49th percentiles
+            ),  # 1st and 99th percentiles
         ],
         "number_rooms_bounds": [
             (2, 8),
