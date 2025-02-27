@@ -31,7 +31,7 @@ from asf_hp_cost_estimator_model.pipeline.model_evaluation.conduct_cross_validat
 from asf_hp_cost_estimator_model.pipeline.model_training.fit_cost_model import (
     set_up_pipeline,
 )
-from asf_hp_cost_estimator_model import config
+from asf_hp_cost_estimator_model import config, PROJECT_DIR
 
 
 def get_features() -> Tuple[List[str], List[str], str]:
@@ -306,8 +306,12 @@ if __name__ == "__main__":
 
     # Saving the results
     pd.DataFrame(results_test).to_csv(
-        "outputs/model_evaluation/hyperparameter_tuning_test.csv"
+        os.path.join(
+            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_test.csv"
+        )
     )
     pd.DataFrame(results_train).to_csv(
-        "outputs/model_evaluation/hyperparameter_tuning_train.csv"
+        os.path.join(
+            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_train.csv"
+        )
     )
