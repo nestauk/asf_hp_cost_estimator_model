@@ -1,6 +1,5 @@
 """
-Script to analyse the residuals of the model.
-It plots the residuals for the numeric variables and the categorical variables of one of the folds.
+Hyperparameter tuning script to find the best hyperparameters for the model.
 """
 
 # package imports
@@ -13,13 +12,12 @@ from sklearn.inspection import (
 import logging
 from typing import Tuple, List
 import os
-from sklearn.metrics import (
-    mean_absolute_error,
-    median_absolute_error,
-)
 import datetime as dt
+import numpy as np
+from itertools import product
 from sklearn.pipeline import Pipeline
-from asf_hp_cost_estimator_model import config
+
+# local imports
 from asf_hp_cost_estimator_model.getters.data_getters import (
     get_enhanced_installations_data,
     get_postcodes_data,
@@ -27,54 +25,69 @@ from asf_hp_cost_estimator_model.getters.data_getters import (
 from asf_hp_cost_estimator_model.pipeline.data_processing.process_installations_data import (
     process_data_before_modelling,
 )
-import numpy as np
-
-numeric_features = config["numeric_features"]
-categorical_features = config["categorical_features"]
-target_feature = config["target_feature"]
-mcs_epc_data = get_enhanced_installations_data()
-postcodes_data = get_postcodes_data()
-
-date_doubling_weights = [
-    False,  # False means not doubling weights
-    "2020-01-01",
-    "2022-04-01",
-]
-cost_bounds = [
-    (3500, 25000),  # originally set by Chris
-    (
-        np.percentile(mcs_epc_data["cost"], 1),
-        np.percentile(mcs_epc_data["cost"], 99),
-    ),  # 1st and 93*49th percentiles
-]
-number_rooms_bounds = [
-    (2, 8),
-    (
-        np.percentile(mcs_epc_data["NUMBER_HABITABLE_ROOMS"], 1),
-        np.percentile(mcs_epc_data["NUMBER_HABITABLE_ROOMS"], 99),
-    ),  # 1st and 99th percentiles
-]
-floor_area_bounds = [
-    (20, 500),
-    (
-        np.percentile(mcs_epc_data["TOTAL_FLOOR_AREA"], 1),
-        np.percentile(mcs_epc_data["TOTAL_FLOOR_AREA"], 99),
-    ),  # 1st and 99th percentiles
-    False,  # False means not using floor area as a feature
-]
-number_rooms_type = ["numeric", "categorical"]
-installations_start_date = [
-    "2007-01-01",  # date of first installation
-    "2016-01-01",  # when EPC started being made available for Scotland
-]
-
 from asf_hp_cost_estimator_model.pipeline.model_evaluation.conduct_cross_validation import (
     update_error_results,
-    compare_average_to_model,
 )
 from asf_hp_cost_estimator_model.pipeline.model_training.fit_cost_model import (
     set_up_pipeline,
 )
+from asf_hp_cost_estimator_model import config
+
+
+def get_features() -> Tuple[List[str], List[str], str]:
+    """
+    Loads feature numeric, categoical and target feature names from config file..
+
+    Returns:
+        Tuple[List[str], List[str], str]: numeric features, categorical features and target feature
+    """
+    numeric_features = config["numeric_features"]
+    categorical_features = config["categorical_features"]
+    target_feature = config["target_feature"]
+    return numeric_features, categorical_features, target_feature
+
+
+def set_data_parameters_to_tune(installations_data: pd.DataFrame) -> dict:
+    """
+    Set the data parameters to tune
+
+    Args:
+        installations_data (pd.DataFrame): installations data
+
+    Returns:
+        dict: dictionary of data parameters to tune
+    """
+    params = {
+        "date_doubling_weights": [
+            False,  # False means not doubling weights
+            "2020-01-01",
+            "2022-04-01",
+        ],
+        "cost_bounds": [
+            (3500, 25000),  # originally set by Chris
+            (
+                np.nanpercentile(installations_data["cost"], 1),
+                np.nanpercentile(installations_data["cost"], 99),
+            ),  # 1st and 93*49th percentiles
+        ],
+        "number_rooms_bounds": [
+            (2, 8),
+            "categorical",  # set number of rooms as categorical
+        ],
+        "floor_area_bounds": [
+            (20, 500),
+            (
+                np.nanpercentile(installations_data["TOTAL_FLOOR_AREA"], 1),
+                np.nanpercentile(installations_data["TOTAL_FLOOR_AREA"], 99),
+            ),  # 1st and 99th percentiles
+            False,  # False means not using floor area as a feature
+        ],
+        "installations_start_date": [
+            "2007-01-01",  # date of first installation
+            "2016-01-01",  # when EPC started being made available for Scotland
+        ],
+    }
+    return params
 
 
 def fit_model(
@@ -165,8 +178,9 @@ def perform_kfold_cross_validation(
         # Fit the model
         model = fit_model(model_data, X_train, y_train, date_double_weights)
 
-        # Predict on the test set
+        # Predict on the test and train sets
         y_test_pred = model.predict(X_test)
+        y_train_pred = model.predict(X_train)
 
         # Calculate the proportion of training data after a fixed date
         after_date = model_data[(model_data["commission_date"] >= "2023-01-01")]
@@ -175,9 +189,10 @@ def perform_kfold_cross_validation(
 
         # Calculate the proportion of testing data after a fixed date
         after_date_test = np.where(X_test.index.isin(after_date.index), True, False)
+        after_date_train = np.where(X_train.index.isin(after_date.index), True, False)
 
         # Update the results of the model with fold specific results
-        results_model = update_error_results(
+        results_model_test = update_error_results(
             results_model,
             y_test,
             y_test_pred,
@@ -185,44 +200,114 @@ def perform_kfold_cross_validation(
             after_date_test,
         )
 
-    return results_model
+        results_model_train = update_error_results(
+            results_model,
+            y_train,
+            y_train_pred,
+            proportion_train_after_date,
+            after_date_train,
+        )
+
+    return results_model_test, results_model_train
 
 
-results = {}
-for d in date_doubling_weights:
-    for c in cost_bounds:
-        for r in number_rooms_bounds:
-            for f in floor_area_bounds:
-                for inst_d in installations_start_date:
-                    exclusion_dict = {
-                        "cost_lower_bound": c[0],
-                        "cost_upper_bound": c[1],
-                        "NUMBER_HABITABLE_ROOMS_lower_bound": r[0],
-                        "NUMBER_HABITABLE_ROOMS_upper_bound": r[1],
-                        "TOTAL_FLOOR_AREA_lower_bound": f[0],
-                        "TOTAL_FLOOR_AREA_upper_bound": f[1],
-                        "PROPERTY_TYPE_allowed_list": ["House", "Bungalow"],
-                    }
-                    mcs_epc_data = get_enhanced_installations_data()
-                    postcodes_data = get_postcodes_data()
+if __name__ == "__main__":
+    results_test = {}
+    results_train = {}
 
-                    model_data = process_data_before_modelling(
-                        mcs_epc_data=mcs_epc_data,
-                        postcodes_data=postcodes_data,
-                        exclusion_criteria_dict=exclusion_dict,
-                        min_date=inst_d,
-                    )
-                    if f == False:
-                        numeric_features = numeric_features.remove("TOTAL_FLOOR_AREA")
+    # Load data and set data parameters to tune
+    mcs_epc_data = get_enhanced_installations_data()
+    data_params = set_data_parameters_to_tune(mcs_epc_data)
 
-                    results_model = perform_kfold_cross_validation(
-                        model_data=model_data,
-                        numeric_features=numeric_features,
-                        categorical_features=categorical_features,
-                        target_feature=target_feature,
-                        kfold_splits=5,
-                        date_double_weights=d,
-                    )
-                    results_model = pd.DataFrame(results_model).mean(axis=0).round(2)
-                    print(results_model)
-                    results[(d, c, r, f, inst_d)] = results_model
+    # Model hyperparameters to tune
+    model_params = {
+        "n_estimators": [100, 200, 300],
+        "learning_rate": [0.01, 0.05, 0.1],
+        "max_depth": [3, 4, 5],
+        "subsample": [0.7, 0.8, 0.9],
+        "min_samples_split": [2, 5, 10],
+    }
+
+    # Parameters to tune include model hyperparameters and data parameters
+    all_params = data_params | model_params
+
+    # Generating all combinations of parameters to tune through grid search
+    param_combinations = list(product(*all_params.values()))
+
+    # Grid search: Iterate through each possible combination
+    for combination in param_combinations:
+        param_dict = dict(zip(all_params.keys(), combination))
+
+        # Data is required to be loaded for each combination
+        mcs_epc_data = get_enhanced_installations_data()
+        postcodes_data = get_postcodes_data()
+
+        # Define exclusion criteria
+        exclusion_dict = {
+            "cost_lower_bound": param_dict["cost_bounds"][0],
+            "cost_upper_bound": param_dict["cost_bounds"][1],
+            "NUMBER_HABITABLE_ROOMS_lower_bound": param_dict["number_rooms_bounds"][0],
+            "NUMBER_HABITABLE_ROOMS_upper_bound": param_dict["number_rooms_bounds"][1],
+            "PROPERTY_TYPE_allowed_list": ["House", "Bungalow"],
+        }
+
+        if param_dict["floor_area_bounds"] != False:
+            exclusion_dict["TOTAL_FLOOR_AREA_lower_bound"] = param_dict[
+                "floor_area_bounds"
+            ][0]
+            exclusion_dict["TOTAL_FLOOR_AREA_upper_bound"] = param_dict[
+                "floor_area_bounds"
+            ][1]
+
+        # Processing data before modelling
+        model_data = process_data_before_modelling(
+            mcs_epc_data=mcs_epc_data,
+            postcodes_data=postcodes_data,
+            exclusion_criteria_dict=exclusion_dict,
+            min_date=param_dict["installations_start_date"],
+            rooms_as_categorical=param_dict["number_rooms_bounds"],
+        )
+
+        # Defining features and target
+        numeric_features, categorical_features, target_feature = get_features()
+
+        if param_dict["floor_area_bounds"] == False:
+            numeric_features = [
+                feat for feat in numeric_features if feat != "TOTAL_FLOOR_AREA"
+            ]
+
+        if param_dict["number_rooms_bounds"] == "categorical":
+            numeric_features = [
+                feat for feat in numeric_features if feat != "NUMBER_HABITABLE_ROOMS"
+            ]
+            categorical_features = categorical_features + [
+                "number_of_rooms_2",
+                "number_of_rooms_3",
+                "number_of_rooms_4",
+                "number_of_rooms_5",
+                "number_of_rooms_6",
+                "number_of_rooms_7",
+            ]
+
+        # Performing k-fold cross-validation
+        results_model_test, results_model_train = perform_kfold_cross_validation(
+            model_data=model_data,
+            numeric_features=numeric_features,
+            categorical_features=categorical_features,
+            target_feature=target_feature,
+            kfold_splits=5,
+            date_double_weights=param_dict["date_doubling_weights"],
+        )
+
+        # Averaging the results for the specific combination across the different folds
+        results_model_test = pd.DataFrame(results_model_test).mean(axis=0).round(2)
+        results_test[combination] = results_model_test
+        results_train[combination] = results_model_train
+
+    # Saving the results
+    pd.DataFrame(results_test).to_csv(
+        "outputs/model_evaluation/hyperparameter_tuning_test.csv"
+    )
+    pd.DataFrame(results_train).to_csv(
+        "outputs/model_evaluation/hyperparameter_tuning_train.csv"
+    )
