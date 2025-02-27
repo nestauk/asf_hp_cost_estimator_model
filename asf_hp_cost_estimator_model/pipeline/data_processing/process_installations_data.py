@@ -127,30 +127,58 @@ def remove_samples_exclusion_criteria(
     Returns:
         pd.DataFrame: Records relevant for modelling.
     """
-    filtered_data = mcs_epc_data.loc[
-        (mcs_epc_data["cost"] > exclusion_criteria_dict["cost_lower_bound"])
-        & (mcs_epc_data["cost"] <= exclusion_criteria_dict["cost_upper_bound"])
-        & (
-            mcs_epc_data["NUMBER_HABITABLE_ROOMS"]
-            >= exclusion_criteria_dict["NUMBER_HABITABLE_ROOMS_lower_bound"]
-        )
-        & (
-            mcs_epc_data["NUMBER_HABITABLE_ROOMS"]
-            <= exclusion_criteria_dict["NUMBER_HABITABLE_ROOMS_upper_bound"]
-        )
-        & (
-            mcs_epc_data["TOTAL_FLOOR_AREA"]
-            >= exclusion_criteria_dict["TOTAL_FLOOR_AREA_lower_bound"]
-        )
-        & (
-            mcs_epc_data["TOTAL_FLOOR_AREA"]
-            <= exclusion_criteria_dict["TOTAL_FLOOR_AREA_upper_bound"]
-        )
-        & mcs_epc_data["PROPERTY_TYPE"].isin(
-            exclusion_criteria_dict["PROPERTY_TYPE_allowed_list"]
-        )
-        & ~mcs_epc_data["cluster"]
-    ].reset_index(drop=True)
+    if "TOTAL_FLOOR_AREA_lower_bound" in exclusion_criteria_dict:
+        filtered_data = mcs_epc_data.loc[
+            (
+                mcs_epc_data["TOTAL_FLOOR_AREA"]
+                >= exclusion_criteria_dict["TOTAL_FLOOR_AREA_lower_bound"]
+            )
+        ]
+
+    if "TOTAL_FLOOR_AREA_upper_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (
+                filtered_data["TOTAL_FLOOR_AREA"]
+                <= exclusion_criteria_dict["TOTAL_FLOOR_AREA_upper_bound"]
+            )
+        ]
+
+    if "cost_lower_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (filtered_data["cost"] >= exclusion_criteria_dict["cost_lower_bound"])
+        ]
+
+    if "cost_upper_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (filtered_data["cost"] <= exclusion_criteria_dict["cost_upper_bound"])
+        ]
+
+    if "NUMBER_HABITABLE_ROOMS_lower_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (
+                filtered_data["NUMBER_HABITABLE_ROOMS"]
+                >= exclusion_criteria_dict["NUMBER_HABITABLE_ROOMS_lower_bound"]
+            )
+        ]
+
+    if "NUMBER_HABITABLE_ROOMS_upper_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (
+                filtered_data["NUMBER_HABITABLE_ROOMS"]
+                <= exclusion_criteria_dict["NUMBER_HABITABLE_ROOMS_upper_bound"]
+            )
+        ]
+
+    if "PROPERTY_TYPE_allowed_list" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            filtered_data["PROPERTY_TYPE"].isin(
+                exclusion_criteria_dict["PROPERTY_TYPE_allowed_list"]
+            )
+        ]
+
+    filtered_data = filtered_data.loc[~filtered_data["cluster"]]
+
+    filtered_data = filtered_data.reset_index(drop=True)
 
     return filtered_data
 
@@ -251,12 +279,15 @@ def add_n_days_col(mcs_epc_data: pd.DataFrame, min_date: str) -> pd.DataFrame:
 # Need dummy variables to flag when a variable is in one of several categories
 # (e.g. construction age bands such as "pre-1929") so easier to dummify variables
 # manually rather than include this step as part of the modelling pipeline
-def dummify_variables(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
+def dummify_variables(
+    mcs_epc_data: pd.DataFrame, rooms_as_categorical: bool = False
+) -> pd.DataFrame:
     """
     Transform columns in data by dummifying according to dictionary.
 
     Args:
         mcs_epc_data (pd.Dataframe): Dataframe containing keys of var_dict as columns.
+        rooms_as_categorical (bool): Whether to treat number of rooms as a categorical variable.
 
     Returns:
         pd.Dataframe: Dataframe with columns dummified.
@@ -308,10 +339,43 @@ def dummify_variables(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
         )
     )
 
-    mcs_epc_data = pd.get_dummies(
-        mcs_epc_data,
-        columns=["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"],
-    )
+    if rooms_as_categorical:
+        rooms_mapping = {
+            1: "1",
+            2: "2",
+            3: "2",
+            4: "4",
+            5: "5",
+            6: "6",
+            7: "7",
+            8: "8+",
+            np.nan: "unknown",
+        }
+
+        mcs_epc_data["number_of_rooms"] = mcs_epc_data["NUMBER_HABITABLE_ROOMS"].apply(
+            lambda x: "8+" if x > 8 else rooms_mapping.get(x, "unknown")
+        )
+
+        mcs_epc_data = pd.get_dummies(
+            mcs_epc_data,
+            columns=[
+                "BUILT_FORM",
+                "PROPERTY_TYPE",
+                "CONSTRUCTION_AGE_BAND",
+                "region_name",
+                "number_of_rooms",
+            ],
+        )
+    else:
+        mcs_epc_data = pd.get_dummies(
+            mcs_epc_data,
+            columns=[
+                "BUILT_FORM",
+                "PROPERTY_TYPE",
+                "CONSTRUCTION_AGE_BAND",
+                "region_name",
+            ],
+        )
 
     return mcs_epc_data
 
@@ -322,6 +386,7 @@ def process_data_before_modelling(
     hp_when_built_threshold: int = config["hp_when_built_threshold"],
     exclusion_criteria_dict: dict = config["exclusion_criteria"],
     min_date: dict = config["min_date"],
+    rooms_as_categorical: bool = False,
 ) -> pd.DataFrame:
     """
     Get clean MCS-EPC data in suitable format for modelling.
@@ -332,6 +397,7 @@ def process_data_before_modelling(
         hp_when_built_threshold (int, optional): Threshold for assuming a dwelling was built with a HP.
         exclusion_criteria_dict (dict, optional): Dictionary of exclusion criteria.
         min_date (str, optional): Minimum date to calculate days elapsed from.
+        rooms_as_categorical (bool, optional): Whether to treat number of rooms as a categorical variable
 
     Returns:
         pd.Dataframe: Suitable MCS-EPC data.
@@ -352,6 +418,6 @@ def process_data_before_modelling(
 
     mcs_epc_data = add_n_days_col(mcs_epc_data, min_date)
 
-    mcs_epc_data = dummify_variables(mcs_epc_data)
+    mcs_epc_data = dummify_variables(mcs_epc_data, rooms_as_categorical)
 
     return mcs_epc_data
