@@ -256,7 +256,7 @@ def dummify_variables(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     Transform columns in data by dummifying according to dictionary.
 
     Args:
-        mcs_epc_data (pd.Dataframe): Dataframe containing keys of var_dict as columns.
+        mcs_epc_data (pd.Dataframe): MCS-EPC records.
 
     Returns:
         pd.Dataframe: Dataframe with columns dummified.
@@ -290,8 +290,12 @@ def dummify_variables(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
             mcs_epc_data[col].value_counts(dropna=False),
         )
 
-    mcs_epc_data["region_name"] = mcs_epc_data["region_name"].str.lower().str.replace(" ", "_")
-    mcs_epc_data["BUILT_FORM"] = mcs_epc_data["BUILT_FORM"].str.lower().str.replace(" ", "_")
+    mcs_epc_data["region_name"] = (
+        mcs_epc_data["region_name"].str.lower().str.replace(" ", "_")
+    )
+    mcs_epc_data["BUILT_FORM"] = (
+        mcs_epc_data["BUILT_FORM"].str.lower().str.replace(" ", "_")
+    )
     mcs_epc_data["BUILT_FORM"] = mcs_epc_data["BUILT_FORM"].apply(
         lambda x: x.replace(
             x,
