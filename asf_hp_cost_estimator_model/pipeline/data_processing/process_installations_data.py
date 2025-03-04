@@ -287,7 +287,8 @@ def dummify_variables(
 
     Args:
         mcs_epc_data (pd.Dataframe): Dataframe containing keys of var_dict as columns.
-        rooms_as_categorical (bool): Whether to treat number of rooms as a categorical variable.
+        rooms_as_categorical (bool): Whether to treat number of rooms as a categorical
+        variable which is then dummiified (True) or to treat it as a continuous variable (False).
 
     Returns:
         pd.Dataframe: Dataframe with columns dummified.
