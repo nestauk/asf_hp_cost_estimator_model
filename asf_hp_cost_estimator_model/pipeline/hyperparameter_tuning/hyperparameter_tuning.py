@@ -36,7 +36,7 @@ from asf_hp_cost_estimator_model import config, PROJECT_DIR
 
 def get_features() -> Tuple[List[str], List[str], str]:
     """
-    Loads numeric, categorical and target feature names from config file..
+    Loads numeric, categorical and target feature names from config file.
 
     Returns:
         Tuple[List[str], List[str], str]: numeric features, categorical features and target feature
@@ -182,8 +182,10 @@ def perform_kfold_cross_validation(
         y_test_pred = model.predict(X_test)
         y_train_pred = model.predict(X_train)
 
-        # Calculate the proportion of training data after a fixed date
-        after_date = model_data[(model_data["commission_date"] >= "2023-01-01")]
+        # Calculate the proportion of training data after a fixed date (for evaluating performance on latest prediction)
+        after_date = model_data[
+            (model_data["commission_date"] >= config["date_for_latest_predictions"])
+        ]
         after_date_train = after_date[after_date.index.isin(X_train.index)]
         proportion_train_after_date = len(after_date_train) / len(X_train)
 
