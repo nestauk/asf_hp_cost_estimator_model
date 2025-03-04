@@ -103,7 +103,8 @@ def perform_kfold_cross_validation(
     kf = KFold(n_splits=kfold_splits, shuffle=True, random_state=0)
 
     # Initialise result variables
-    results_model = []
+    results_model_train = []
+    results_model_test = []
     first_fold = True
 
     # K-fold cross-validation
@@ -141,7 +142,7 @@ def perform_kfold_cross_validation(
 
         # Update the results of the model with fold specific results
         results_model_test = update_error_results(
-            results_model,
+            results_model_test,
             y_test,
             y_test_pred,
             proportion_train_after_date,
@@ -149,7 +150,7 @@ def perform_kfold_cross_validation(
         )
 
         results_model_train = update_error_results(
-            results_model,
+            results_model_train,
             y_train,
             y_train_pred,
             proportion_train_after_date,
