@@ -94,7 +94,7 @@ def fit_model(
     model_data: pd.DataFrame,
     X_train: pd.DataFrame,
     y_train: np.array,
-    date_double_weights,
+    date_double_weights: str,
 ) -> Pipeline:
     """
     Fit the model on the training data.
