@@ -398,7 +398,8 @@ def process_data_before_modelling(
         hp_when_built_threshold (int, optional): Threshold for assuming a dwelling was built with a HP.
         exclusion_criteria_dict (dict, optional): Dictionary of exclusion criteria.
         min_date (str, optional): Minimum date to calculate days elapsed from.
-        rooms_as_categorical (bool, optional): Whether to treat number of rooms as a categorical variable
+        rooms_as_categorical (bool): Whether to treat number of rooms as a categorical
+        variable which is then dummiified (True) or to treat it as a continuous variable (False).
 
     Returns:
         pd.Dataframe: Suitable MCS-EPC data.
