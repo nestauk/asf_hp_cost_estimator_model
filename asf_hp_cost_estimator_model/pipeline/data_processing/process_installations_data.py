@@ -61,7 +61,7 @@ def remove_properties_with_hp_when_built(
         "CONSTRUCTION_AGE_BAND",
     ] = "2007 onwards"
 
-    new_dwellings["days_between_inspection_and_hp_comission"] = (
+    new_dwellings["days_between_inspection_and_hp_comission"] = abs(
         new_dwellings["commission_date"] - new_dwellings["INSPECTION_DATE"]
     )
 
