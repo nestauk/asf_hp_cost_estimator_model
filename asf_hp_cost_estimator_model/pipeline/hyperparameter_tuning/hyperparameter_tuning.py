@@ -251,7 +251,7 @@ if __name__ == "__main__":
             "PROPERTY_TYPE_allowed_list": ["House", "Bungalow"],
         }
 
-        if param_dict["floor_area_bounds"] != False:
+        if param_dict["floor_area_bounds"]:
             exclusion_dict["TOTAL_FLOOR_AREA_lower_bound"] = param_dict[
                 "floor_area_bounds"
             ][0]
