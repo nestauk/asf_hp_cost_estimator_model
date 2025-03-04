@@ -271,7 +271,7 @@ if __name__ == "__main__":
         # Defining features and target
         numeric_features, categorical_features, target_feature = get_features()
 
-        if param_dict["floor_area_bounds"] == False:
+        if not param_dict["floor_area_bounds"]:  # False means not using floor area as a feature
             numeric_features = [
                 feat for feat in numeric_features if feat != "TOTAL_FLOOR_AREA"
             ]
