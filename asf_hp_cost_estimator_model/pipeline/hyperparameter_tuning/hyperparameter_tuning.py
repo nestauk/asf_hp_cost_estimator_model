@@ -195,13 +195,21 @@ if __name__ == "__main__":
                 "floor_area_bounds"
             ][1]
 
+        if (
+            isinstance(param_dict["number_rooms_bounds"], str)
+            and param_dict["number_rooms_bounds"] == "categorical"
+        ):
+            rooms_as_categorical = True
+        else:
+            rooms_as_categorical = False
+
         # Processing data before modelling
         model_data = process_data_before_modelling(
             mcs_epc_data=mcs_epc_data,
             postcodes_data=postcodes_data,
             exclusion_criteria_dict=exclusion_dict,
             min_date=param_dict["installations_start_date"],
-            rooms_as_categorical=param_dict["number_rooms_bounds"],
+            rooms_as_categorical=rooms_as_categorical,
         )
 
         # Defining features and target

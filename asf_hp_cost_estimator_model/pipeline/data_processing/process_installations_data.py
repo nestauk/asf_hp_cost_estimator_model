@@ -288,7 +288,7 @@ def dummify_variables(
     Args:
         mcs_epc_data (pd.Dataframe): Dataframe containing keys of var_dict as columns.
         rooms_as_categorical (bool): Whether to treat number of rooms as a categorical
-        variable which is then dummiified (True) or to treat it as a continuous variable (False).
+        variable which is then dummified (True) or to treat it as a continuous variable (False).
 
     Returns:
         pd.Dataframe: Dataframe with columns dummified.
@@ -398,7 +398,7 @@ def process_data_before_modelling(
         exclusion_criteria_dict (dict, optional): Dictionary of exclusion criteria.
         min_date (str, optional): Minimum date to calculate days elapsed from.
         rooms_as_categorical (bool): Whether to treat number of rooms as a categorical
-        variable which is then dummiified (True) or to treat it as a continuous variable (False).
+        variable which is then dummified (True) or to treat it as a continuous variable (False).
 
     Returns:
         pd.Dataframe: Suitable MCS-EPC data.
