@@ -135,7 +135,7 @@ def update_error_results_by_dummy_group(
     Args:
         model_data (pd.DataFrame): model data
         test_index (np.array): indices of the test data
-        y_test (np.array): test set true values of the target variable
+        y_test (np.array): test set of true values of the target variable
         y_test_pred (np.array): predicted values of the target variable
         list_features (List[str]): _description_
         results (dict): dictionary containing the results of the model evaluation
