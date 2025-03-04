@@ -90,9 +90,8 @@ def filter_to_relevant_samples(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     Filter HP installation data to samples that are useful for modelling.
     Samples useful for modelling are:
     - ASHP installations
-    - Linked to an EPC
     - Cost not NA
-    - INSPECTION_DATE is not null
+    - INSPECTION_DATE is not null (installation is linked to an EPC)
 
     Args:
         mcs_epc_data (pd.DataFrame): MCS-EPC records.
@@ -100,11 +99,9 @@ def filter_to_relevant_samples(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Records relevant for modelling.
     """
-
     filtered_data = mcs_epc_data.loc[
         (mcs_epc_data["tech_type"] == "Air Source Heat Pump")
-        & ~mcs_epc_data["original_epc_index"].isna()  # has an EPC certificate
-        & ~mcs_epc_data["INSPECTION_DATE"].isnull()
+        & ~mcs_epc_data["INSPECTION_DATE"].isnull()  # has an EPC certificate
         & ~mcs_epc_data["cost"].isna()
     ].reset_index(drop=True)
 
