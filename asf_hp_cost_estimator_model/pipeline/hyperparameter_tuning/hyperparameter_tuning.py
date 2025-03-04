@@ -108,6 +108,8 @@ def fit_model(
     Returns:
         Pipeline: fitted model pipeline
     """
+    # Set up the sklearn pipeline and fit
+    model = set_up_pipeline()
 
     # To codify increased reliability in data after a certain date double the weight of the samples
     if date_double_weights:
@@ -116,13 +118,9 @@ def fit_model(
             2,
             1,
         )
-        # Set up the sklearn pipeline and fit
-        model = set_up_pipeline()
         model.fit(X_train, y_train, regressor__sample_weight=train_weights)
-
-    # Set up the sklearn pipeline and fit
-    model = set_up_pipeline()
-    model.fit(X_train, y_train)
+    else:
+        model.fit(X_train, y_train)
 
     return model
 
