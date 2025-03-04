@@ -91,7 +91,7 @@ def set_data_parameters_to_tune(installations_data: pd.DataFrame) -> dict:
 
 
 def fit_model(
-    model_data: Pipeline,
+    model_data: pd.DataFrame,
     X_train: pd.DataFrame,
     y_train: np.array,
     date_double_weights,
@@ -100,7 +100,7 @@ def fit_model(
     Fit the model on the training data.
 
     Args:
-        model_data (Pipeline): model data
+        model_data (pd.DataFrame): model data
         X_train (pd.DataFrame): training data
         y_train (np.array): training target
         date_double_weights (str, optional): date from when we double the weights. Defaults to config["date_double_weights"].
@@ -271,7 +271,9 @@ if __name__ == "__main__":
         # Defining features and target
         numeric_features, categorical_features, target_feature = get_features()
 
-        if not param_dict["floor_area_bounds"]:  # False means not using floor area as a feature
+        if not param_dict[
+            "floor_area_bounds"
+        ]:  # False means not using floor area as a feature
             numeric_features = [
                 feat for feat in numeric_features if feat != "TOTAL_FLOOR_AREA"
             ]
