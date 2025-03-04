@@ -85,15 +85,15 @@ def perform_kfold_cross_validation(
     Performs k-fold cross-validation.
 
     Args:
-        model_data (pd.DataFrame): _description_
-        numeric_features (List[str]): _description_
-        categorical_features (List[str]): _description_
-        target_feature (str): _description_
-        kfold_splits (int): _description_
-        date_double_weights(str): _description_
+        model_data (pd.DataFrame): model data
+        numeric_features (List[str]): list of numeric features
+        categorical_features (List[str]): list of categorical features
+        target_feature (str): target feature
+        kfold_splits (int): number of folds
+        date_double_weights(str): date from when we start doubling the weights for instances
 
     Returns:
-        Tuple[List[dict], List[dict]]: _description_
+        Tuple[List[dict], List[dict]]: results on the test and train sets
     """
     # Define input and target data
     X = model_data[numeric_features + categorical_features]
