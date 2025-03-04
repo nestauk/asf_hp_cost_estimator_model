@@ -53,7 +53,7 @@ def update_error_results(
     after_date_test: np.array,
 ) -> List[dict]:
     """
-    Update error results after a new testing the model trained on a new fold.
+    Update error results after testing the model trained on a new fold.
 
     Args:
         results (List[dict]): List of dictionaries containing the results of the model evaluation
