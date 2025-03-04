@@ -334,7 +334,7 @@ def compare_average_to_model(
 
 def summarise_results_categories(results_per_categorical_feature: dict) -> pd.DataFrame:
     """
-    Summarises the results of the model evaluation for ach dummy feature.
+    Summarises the results of the model evaluation for each dummy feature.
 
     Args:
         results_per_categorical_feature (dict): dictionary containing the results of the model evaluation for each dummy feature
