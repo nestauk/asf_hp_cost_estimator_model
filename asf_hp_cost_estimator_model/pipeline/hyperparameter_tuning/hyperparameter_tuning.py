@@ -36,7 +36,7 @@ from asf_hp_cost_estimator_model import config, PROJECT_DIR
 
 def get_features() -> Tuple[List[str], List[str], str]:
     """
-    Loads feature numeric, categoical and target feature names from config file..
+    Loads numeric, categorical and target feature names from config file..
 
     Returns:
         Tuple[List[str], List[str], str]: numeric features, categorical features and target feature
