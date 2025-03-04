@@ -134,7 +134,7 @@ def perform_kfold_cross_validation(
     target_feature: str,
     kfold_splits: int,
     date_double_weights: str,
-) -> Tuple[List, List, dict]:
+) -> Tuple[List[dict], List[dict]]:
     """
     Performs k-fold cross-validation.
 
@@ -147,7 +147,7 @@ def perform_kfold_cross_validation(
         date_double_weights(str): _description_
 
     Returns:
-        Tuple[List, List, dict]: _description_
+        Tuple[List[dict], List[dict]]: _description_
     """
     # Define input and target data
     X = model_data[numeric_features + categorical_features]
