@@ -13,7 +13,14 @@ authors = [{name = "Nesta"}]
 license = {text = "proprietary"}
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+   "s3fs>=2023.3.0",
+    "numpy",
+    "pandas",
+    "scikit-learn>=1.6.1",
+    "matplotlib",
+    "seaborn",
+    ]
 
 [project.urls]
 repository = "https://github.com/nestauk/asf_hp_cost_estimator_model"
