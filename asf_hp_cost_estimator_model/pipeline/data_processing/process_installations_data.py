@@ -350,11 +350,10 @@ def dummify_variables(
             6: "6",
             7: "7",
             8: "8+",
-            np.nan: "unknown",
         }
 
         mcs_epc_data["number_of_rooms"] = mcs_epc_data["NUMBER_HABITABLE_ROOMS"].apply(
-            lambda x: "8+" if x > 8 else rooms_mapping.get(x, "unknown")
+            lambda x: "8+" if x > 8 else rooms_mapping.get(x, np.nan)
         )
 
         mcs_epc_data = pd.get_dummies(
