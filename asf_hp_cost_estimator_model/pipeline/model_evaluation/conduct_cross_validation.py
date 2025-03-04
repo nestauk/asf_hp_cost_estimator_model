@@ -266,7 +266,7 @@ def perform_kfold_cross_validation(
 
         # Predict with a constant model (based on the mean of the training set)
         # this is used to assess how good the model is compared to a simple model
-        y_test_pred_constant = np.full_like(y_test, np.mean(y_train))
+        y_test_pred_constant = np.full_like(y_test, np.mean(y_train), dtype=np.double)
 
         # Calculate the proportion of training data after a fixed date
         after_date = model_data[
