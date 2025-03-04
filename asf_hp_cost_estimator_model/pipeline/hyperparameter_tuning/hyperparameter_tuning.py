@@ -110,7 +110,7 @@ def fit_model(
     """
 
     # To codify increased reliability in data after a certain date double the weight of the samples
-    if date_double_weights != False:
+    if date_double_weights:
         train_weights = np.where(
             model_data.loc[X_train.index]["commission_date"] >= date_double_weights,
             2,
