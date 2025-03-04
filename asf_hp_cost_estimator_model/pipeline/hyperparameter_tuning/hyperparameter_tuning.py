@@ -31,63 +31,11 @@ from asf_hp_cost_estimator_model.pipeline.model_evaluation.conduct_cross_validat
 from asf_hp_cost_estimator_model.pipeline.model_training.fit_cost_model import (
     set_up_pipeline,
 )
+from asf_hp_cost_estimator_model.pipeline.hyperparameter_tuning.params_to_tune import (
+    model_params,
+    data_params,
+)
 from asf_hp_cost_estimator_model import config, PROJECT_DIR
-
-
-def get_features() -> Tuple[List[str], List[str], str]:
-    """
-    Loads numeric, categorical and target feature names from config file.
-
-    Returns:
-        Tuple[List[str], List[str], str]: numeric features, categorical features and target feature
-    """
-    numeric_features = config["numeric_features"]
-    categorical_features = config["categorical_features"]
-    target_feature = config["target_feature"]
-    return numeric_features, categorical_features, target_feature
-
-
-def set_data_parameters_to_tune(installations_data: pd.DataFrame) -> dict:
-    """
-    Set the data parameters to tune
-
-    Args:
-        installations_data (pd.DataFrame): installations data
-
-    Returns:
-        dict: dictionary of data parameters to tune
-    """
-    params = {
-        "date_doubling_weights": [
-            False,  # False means not doubling weights
-            "2020-01-01",
-            "2022-04-01",
-        ],
-        "cost_bounds": [
-            (3500, 25000),  # originally set by Chris
-            (
-                np.nanpercentile(installations_data["cost"], 1),
-                np.nanpercentile(installations_data["cost"], 99),
-            ),  # 1st and 99th percentiles
-        ],
-        "number_rooms_bounds": [
-            (2, 8),
-            "categorical",  # set number of rooms as categorical
-        ],
-        "floor_area_bounds": [
-            (20, 500),
-            (
-                np.nanpercentile(installations_data["TOTAL_FLOOR_AREA"], 1),
-                np.nanpercentile(installations_data["TOTAL_FLOOR_AREA"], 99),
-            ),  # 1st and 99th percentiles
-            False,  # False means not using floor area as a feature
-        ],
-        "installations_start_date": [
-            "2007-01-01",  # date of first installation
-            "2016-01-01",  # when EPC started being made available for Scotland
-        ],
-    }
-    return params
 
 
 def fit_model(
@@ -215,19 +163,6 @@ if __name__ == "__main__":
     results_test = {}
     results_train = {}
 
-    # Load data and set data parameters to tune
-    mcs_epc_data = get_enhanced_installations_data()
-    data_params = set_data_parameters_to_tune(mcs_epc_data)
-
-    # Model hyperparameters to tune
-    model_params = {
-        "n_estimators": [100, 200, 300],
-        "learning_rate": [0.01, 0.05, 0.1],
-        "max_depth": [3, 4, 5],
-        "subsample": [0.7, 0.8, 0.9, 1],
-        "min_samples_split": [2, 5, 10],
-    }
-
     # Parameters to tune include model hyperparameters and data parameters
     all_params = data_params | model_params
 
@@ -269,20 +204,22 @@ if __name__ == "__main__":
         )
 
         # Defining features and target
-        numeric_features, categorical_features, target_feature = get_features()
-
         if not param_dict[
             "floor_area_bounds"
         ]:  # False means not using floor area as a feature
             numeric_features = [
-                feat for feat in numeric_features if feat != "TOTAL_FLOOR_AREA"
+                feat
+                for feat in config["numeric_features"]
+                if feat != "TOTAL_FLOOR_AREA"
             ]
 
         if param_dict["number_rooms_bounds"] == "categorical":
             numeric_features = [
-                feat for feat in numeric_features if feat != "NUMBER_HABITABLE_ROOMS"
+                feat
+                for feat in config["numeric_features"]
+                if feat != "NUMBER_HABITABLE_ROOMS"
             ]
-            categorical_features = categorical_features + [
+            categorical_features = config["categorical_features"] + [
                 "number_of_rooms_2",
                 "number_of_rooms_3",
                 "number_of_rooms_4",
@@ -296,7 +233,7 @@ if __name__ == "__main__":
             model_data=model_data,
             numeric_features=numeric_features,
             categorical_features=categorical_features,
-            target_feature=target_feature,
+            target_feature=config["target_feature"],
             kfold_splits=5,
             date_double_weights=param_dict["date_doubling_weights"],
         )
