@@ -128,7 +128,7 @@ def remove_samples_exclusion_criteria(
         pd.DataFrame: Records relevant for modelling.
     """
     filtered_data = mcs_epc_data.loc[
-        (mcs_epc_data["cost"] > exclusion_criteria_dict["cost_lower_bound"])
+        (mcs_epc_data["cost"] >= exclusion_criteria_dict["cost_lower_bound"])
         & (mcs_epc_data["cost"] <= exclusion_criteria_dict["cost_upper_bound"])
         & (
             mcs_epc_data["NUMBER_HABITABLE_ROOMS"]
