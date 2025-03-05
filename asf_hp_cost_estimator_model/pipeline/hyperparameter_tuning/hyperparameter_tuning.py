@@ -91,7 +91,7 @@ def perform_kfold_cross_validation(
         categorical_features (List[str]): list of categorical features
         target_feature (str): target feature
         kfold_splits (int): number of folds
-        date_double_weights(str): date from when we start doubling the weights for instances
+        date_double_weights(str): date from when we start doubling the weights for installations
 
     Returns:
         Tuple[List[dict], List[dict]]: results on the test and train sets
