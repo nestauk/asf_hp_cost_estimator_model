@@ -206,9 +206,7 @@ if __name__ == "__main__":
             ][1]
 
         # Defining rooms_as_categorical variable according to number_rooms_bounds param
-        if isinstance(param_dict["number_rooms_bounds"], str) and (
-            param_dict["number_rooms_bounds"] == "categorical"
-        ):
+        if param_dict["number_rooms_bounds"] == "categorical":
             rooms_as_categorical = True
 
             # We create dummies from NUMBER_HABITABLE_ROOMS feature if number_rooms_bounds is set to categorical
