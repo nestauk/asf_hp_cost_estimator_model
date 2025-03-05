@@ -85,7 +85,7 @@ def fit_model_and_predict(
     """
     # set up the weights for the training set
     train_weights = np.where(
-        model_data.loc[X_train.index]["commission_date"] >= date_double_weights,
+        model_data.iloc[X_train.index]["commission_date"] >= date_double_weights,
         2,
         1,
     )
