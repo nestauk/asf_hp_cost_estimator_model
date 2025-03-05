@@ -121,14 +121,14 @@ def update_error_results(
     return results
 
 
-def update_error_results_by_dummy_group(
+def update_error_results_for_each_feature(
     model_data: pd.DataFrame,
     test_index: np.array,
     y_test: np.array,
     y_test_pred: np.array,
     list_features: List[str],
     results: dict,
-):
+) -> dict:
     """
     Update error results after testing the model trained on a new fold
     for each feature in the list of features.
@@ -298,7 +298,7 @@ def perform_kfold_cross_validation(
         )
 
         # Update the results of the model with fold specific results for each dummy group
-        results_per_categorical_feature = update_error_results_by_dummy_group(
+        results_per_categorical_feature = update_error_results_for_each_feature(
             model_data,
             test_index,
             y_test,
