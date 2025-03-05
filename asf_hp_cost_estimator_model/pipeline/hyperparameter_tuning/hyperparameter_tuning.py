@@ -191,7 +191,7 @@ if __name__ == "__main__":
         }
 
         # We exclude the floor area feature if floor_area_bounds is set to False
-        if (isinstance(param_dict["floor_area_bounds"], bool)) and not param_dict[
+        if not param_dict[
             "floor_area_bounds"
         ]:  # False means not using floor area as a feature
             numeric_features = [
