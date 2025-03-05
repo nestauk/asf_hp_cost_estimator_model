@@ -178,7 +178,7 @@ def update_error_results_for_each_feature(
 
 
 def fit_model(
-    model_data: Pipeline,
+    model_data: pd.DataFrame,
     X_train: pd.DataFrame,
     y_train: np.array,
     date_double_weights: str = config["date_double_weights"],
@@ -187,7 +187,7 @@ def fit_model(
     Fit the model on the training data.
 
     Args:
-        model_data (Pipeline): model data
+        model_data (pd.DataFrame): model data
         X_train (pd.DataFrame): training data
         y_train (np.array): training target
         date_double_weights (str, optional): date from when we double the weights. Defaults to config["date_double_weights"].
