@@ -25,8 +25,8 @@ installations_data = get_enhanced_installations_data()
 data_params = {
     "date_doubling_weights": [
         False,  # False means not doubling weights
-        "2020-01-01",
-        "2022-04-01",
+        "2020-01-01",  # data originally set in initial cost estimator
+        "2022-04-01",  # date when BUS starts corresponding to a change in house archetypes getting a heat pump
     ],
     "cost_bounds": [
         (3500, 25000),  # originally set by Chris
