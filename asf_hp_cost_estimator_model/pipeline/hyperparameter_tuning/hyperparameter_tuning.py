@@ -5,6 +5,7 @@ Hyperparameter tuning script to find the best hyperparameters for the model.
 # package imports
 import numpy as np
 import pandas as pd
+import json
 from sklearn.model_selection import KFold
 from sklearn.inspection import (
     PartialDependenceDisplay,
@@ -178,16 +179,25 @@ if __name__ == "__main__":
         mcs_epc_data = get_enhanced_installations_data()
         postcodes_data = get_postcodes_data()
 
+        # Getting the pre-defined features and target
+        numeric_features = config["numeric_features"]
+        categorical_features = config["categorical_features"]
+
         # Define exclusion criteria
         exclusion_dict = {
             "cost_lower_bound": param_dict["cost_bounds"][0],
             "cost_upper_bound": param_dict["cost_bounds"][1],
-            "NUMBER_HABITABLE_ROOMS_lower_bound": param_dict["number_rooms_bounds"][0],
-            "NUMBER_HABITABLE_ROOMS_upper_bound": param_dict["number_rooms_bounds"][1],
             "PROPERTY_TYPE_allowed_list": ["House", "Bungalow"],
         }
 
-        if param_dict["floor_area_bounds"]:
+        # We exclude the floor area feature if floor_area_bounds is set to False
+        if (isinstance(param_dict["floor_area_bounds"], bool)) and not param_dict[
+            "floor_area_bounds"
+        ]:  # False means not using floor area as a feature
+            numeric_features = [
+                feat for feat in numeric_features if feat != "TOTAL_FLOOR_AREA"
+            ]
+        else:  # otherwise we update the exclusion_dict with floor area bounds provided
             exclusion_dict["TOTAL_FLOOR_AREA_lower_bound"] = param_dict[
                 "floor_area_bounds"
             ][0]
@@ -195,13 +205,32 @@ if __name__ == "__main__":
                 "floor_area_bounds"
             ][1]
 
-        if (
-            isinstance(param_dict["number_rooms_bounds"], str)
-            and param_dict["number_rooms_bounds"] == "categorical"
+        # Defining rooms_as_categorical variable according to number_rooms_bounds param
+        if isinstance(param_dict["number_rooms_bounds"], str) and (
+            param_dict["number_rooms_bounds"] == "categorical"
         ):
             rooms_as_categorical = True
-        else:
+
+            # We create dummies from NUMBER_HABITABLE_ROOMS feature if number_rooms_bounds is set to categorical
+            numeric_features = [
+                feat for feat in numeric_features if feat != "NUMBER_HABITABLE_ROOMS"
+            ]
+            categorical_features = categorical_features + [
+                "number_of_rooms_2",
+                "number_of_rooms_3",
+                "number_of_rooms_4",
+                "number_of_rooms_5",
+                "number_of_rooms_6",
+                "number_of_rooms_7",
+            ]
+        else:  # otherwise we update the exclusion_dict
             rooms_as_categorical = False
+            exclusion_dict["NUMBER_HABITABLE_ROOMS_lower_bound"] = param_dict[
+                "number_rooms_bounds"
+            ][0]
+            exclusion_dict["NUMBER_HABITABLE_ROOMS_upper_bound"] = param_dict[
+                "number_rooms_bounds"
+            ][1]
 
         # Processing data before modelling
         model_data = process_data_before_modelling(
@@ -211,31 +240,6 @@ if __name__ == "__main__":
             min_date=param_dict["installations_start_date"],
             rooms_as_categorical=rooms_as_categorical,
         )
-
-        # Defining features and target
-        if not param_dict[
-            "floor_area_bounds"
-        ]:  # False means not using floor area as a feature
-            numeric_features = [
-                feat
-                for feat in config["numeric_features"]
-                if feat != "TOTAL_FLOOR_AREA"
-            ]
-
-        if param_dict["number_rooms_bounds"] == "categorical":
-            numeric_features = [
-                feat
-                for feat in config["numeric_features"]
-                if feat != "NUMBER_HABITABLE_ROOMS"
-            ]
-            categorical_features = config["categorical_features"] + [
-                "number_of_rooms_2",
-                "number_of_rooms_3",
-                "number_of_rooms_4",
-                "number_of_rooms_5",
-                "number_of_rooms_6",
-                "number_of_rooms_7",
-            ]
 
         # Performing k-fold cross-validation
         results_model_test, results_model_train = perform_kfold_cross_validation(
@@ -248,18 +252,26 @@ if __name__ == "__main__":
         )
 
         # Averaging the results for the specific combination across the different folds
-        results_model_test = pd.DataFrame(results_model_test).mean(axis=0).round(2)
-        results_test[combination] = results_model_test
-        results_train[combination] = results_model_train
+        # results_model_test = pd.DataFrame(results_model_test).mean(axis=0).round(2)
+        results_test[", ".join(map(str, combination))] = (
+            pd.DataFrame(results_model_test).mean().round(2).to_dict()
+        )
+        results_train[", ".join(map(str, combination))] = (
+            pd.DataFrame(results_model_test).mean().round(2).to_dict()
+        )
 
     # Saving the results
-    pd.DataFrame(results_test).to_csv(
+    with open(
         os.path.join(
-            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_test.csv"
-        )
-    )
-    pd.DataFrame(results_train).to_csv(
+            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_test.json"
+        ),
+        "w",
+    ) as f:
+        json.dump(results_test, f)
+    with open(
         os.path.join(
-            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_train.csv"
-        )
-    )
+            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_train.json"
+        ),
+        "w",
+    ) as f:
+        json.dump(results_train, f)

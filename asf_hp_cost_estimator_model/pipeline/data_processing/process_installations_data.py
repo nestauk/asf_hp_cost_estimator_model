@@ -127,8 +127,10 @@ def remove_samples_exclusion_criteria(
     Returns:
         pd.DataFrame: Records relevant for modelling.
     """
+    filtered_data = mcs_epc_data.copy()
+
     if "TOTAL_FLOOR_AREA_lower_bound" in exclusion_criteria_dict:
-        filtered_data = mcs_epc_data.loc[
+        filtered_data = filtered_data.loc[
             (
                 mcs_epc_data["TOTAL_FLOOR_AREA"]
                 >= exclusion_criteria_dict["TOTAL_FLOOR_AREA_lower_bound"]
@@ -310,17 +312,8 @@ def dummify_variables(
         age_bands_mapping
     )
 
-    print(
-        "Unique value counts for region",
-        mcs_epc_data["region_name"].value_counts(dropna=False),
-    )
-
     for col in ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]:
         mcs_epc_data[col] = mcs_epc_data[col].replace(np.nan, "unknown")
-        print(
-            f"Unique value counts for {col}",
-            mcs_epc_data[col].value_counts(dropna=False),
-        )
 
     mcs_epc_data["region_name"] = mcs_epc_data["region_name"].apply(
         lambda x: x.lower().replace(" ", "_")
@@ -344,7 +337,7 @@ def dummify_variables(
         rooms_mapping = {
             1: "1",
             2: "2",
-            3: "2",
+            3: "3",
             4: "4",
             5: "5",
             6: "6",
