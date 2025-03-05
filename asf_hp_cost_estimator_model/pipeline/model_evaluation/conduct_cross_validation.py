@@ -281,30 +281,30 @@ def perform_kfold_cross_validation(
 
         # Update the results of the constant model with fold specific results
         results_constant = update_error_results(
-            results_constant,
-            y_test,
-            y_test_pred_constant,
-            proportion_train_after_date,
-            after_date_test,
+            results=results_constant,
+            actual=y_test,
+            predicted=y_test_pred_constant,
+            proportion_train_after_date=proportion_train_after_date,
+            after_date_test=after_date_test,
         )
 
         # Update the results of the model with fold specific results
         results_model = update_error_results(
-            results_model,
-            y_test,
-            y_test_pred,
-            proportion_train_after_date,
-            after_date_test,
+            results=results_model,
+            actual=y_test,
+            predicted=y_test_pred,
+            proportion_train_after_date=proportion_train_after_date,
+            after_date_test=after_date_test,
         )
 
         # Update the results of the model with fold specific results for each dummy group
         results_per_categorical_feature = update_error_results_for_each_feature(
-            model_data,
-            test_index,
-            y_test,
-            y_test_pred,
-            categorical_features,
-            results_per_categorical_feature,
+            model_data=model_data,
+            test_index=test_index,
+            y_test=y_test,
+            y_test_pred=y_test_pred,
+            list_features=categorical_features,
+            results=results_per_categorical_feature,
         )
 
     return results_constant, results_model, results_per_categorical_feature
