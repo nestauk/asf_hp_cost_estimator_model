@@ -216,19 +216,19 @@ def perform_kfold_cross_validation(
     categorical_features: List[str],
     target_feature: str,
     kfold_splits: int,
+    date_double_weights: str = config["date_double_weights"],
 ) -> Tuple[List, List, dict]:
     """
-    Performs k-fold cross-validation.
-
+        Performs k-fold cross-validation.
     Args:
-        model_data (pd.DataFrame): _description_
-        numeric_features (List[str]): _description_
-        categorical_features (List[str]): _description_
-        target_feature (str): _description_
-        kfold_splits (int): _description_
-
+        model_data (pd.DataFrame): model data
+        numeric_features (List[str]): list of numeric features
+        categorical_features (List[str]): list of categorical features
+        target_feature (str): target feature
+        kfold_splits (int): number of folds
+        date_double_weights(str): date from when we start doubling the weights for instances
     Returns:
-        Tuple[List, List, dict]: _description_
+        Tuple[List[dict], List[dict]]: results on the test and train sets
     """
     # Define input and target data
     X = model_data[numeric_features + categorical_features]
@@ -260,7 +260,7 @@ def perform_kfold_cross_validation(
             first_fold = False
 
         # Fit the model
-        model = fit_model(model_data, X_train, y_train)
+        model = fit_model(model_data, X_train, y_train, date_double_weights)
 
         # Predict on the test set
         y_test_pred = model.predict(X_test)
@@ -271,7 +271,7 @@ def perform_kfold_cross_validation(
 
         # Calculate the proportion of training data after a fixed date
         after_date = model_data[
-            (model_data["commission_date"] >= config["date_double_weights"])
+            (model_data["commission_date"] >= config["date_for_latest_predictions"])
         ]
         after_date_train = after_date[after_date.index.isin(X_train.index)]
         proportion_train_after_date = len(after_date_train) / len(X_train)
