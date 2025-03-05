@@ -339,7 +339,15 @@ def perform_kfold_cross_validation(
     date_double_weights: str = config["date_double_weights"],
 ) -> Tuple[List, List, dict]:
     """
-        Performs k-fold cross-validation.
+    Performs k-fold cross-validation across kfold splits by:
+        - computing a series of metrics for the model on training and testing sets
+        - computing a series of metrics for a constant model on training and testing sets
+        - computing a series of metrics for the model on training and testing sets for each dummy feature
+        to understand how the model performs on different groups of data.
+
+    Metrics include: r2_score, mean_absolute_error, median_absolute_error,
+    percentage of over and under predictions, mean absolute error for over and under predictions.
+
     Args:
         model_data (pd.DataFrame): model data
         numeric_features (List[str]): list of numeric features
