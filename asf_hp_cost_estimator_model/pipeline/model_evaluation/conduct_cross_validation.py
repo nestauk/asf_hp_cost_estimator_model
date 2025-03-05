@@ -130,7 +130,8 @@ def update_error_results_by_dummy_group(
     results: dict,
 ):
     """
-    Update error results after a new testing the model trained on a new fold.
+    Update error results after testing the model trained on a new fold
+    for each feature in the list of features.
 
     Args:
         model_data (pd.DataFrame): model data
