@@ -252,7 +252,6 @@ if __name__ == "__main__":
         )
 
         # Averaging the results for the specific combination across the different folds
-        # results_model_test = pd.DataFrame(results_model_test).mean(axis=0).round(2)
         results_test[", ".join(map(str, combination))] = (
             pd.DataFrame(results_model_test).mean().round(2).to_dict()
         )
