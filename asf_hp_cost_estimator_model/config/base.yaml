@@ -75,3 +75,6 @@ target_feature: "cost"
 
 # K-fold cross validation
 kfold_splits: 5
+
+# Date for comparing model performance in latest predictions
+date_for_latest_predictions: "2023-01-01"

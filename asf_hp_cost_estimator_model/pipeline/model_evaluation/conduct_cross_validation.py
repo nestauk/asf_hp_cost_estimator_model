@@ -63,7 +63,8 @@ def update_error_results(
         actual_test (np.array): True values of the target variable for testing set
         predicted_test (np.array): Predicted values of the target variable for testing set
         test_dates (np.array): Dates corresponding to the testing set samples
-        after_date (str): The date threshold to split the data
+        after_date (str): Specifies a date to split the evaluation. The model's performance will be
+        evaluated separately on instances that occur after this date.
 
     Returns:
         List[dict]: Updated error results
@@ -151,7 +152,9 @@ def create_group_data(
     predicted: np.array,
 ) -> pd.DataFrame:
     """
-    Create a group data for a specific feature.
+    Create a slice of data given a specfic set of indices and for a specific feature
+    with information about actual and predicted values.
+    This is used to evaluate the model performance on a specific group of data.
 
     Args:
         data (pd.DataFrame): model data
@@ -190,8 +193,11 @@ def update_error_results_for_each_feature(
     Args:
         model_data (pd.DataFrame): model data
         test_index (np.array): indices of the test data
-        y_test (np.array): test set of true values of the target variable
-        y_test_pred (np.array): predicted values of the target variable
+        train_index (np.array): indices of the train data
+        actual_test (np.array): set of true values of the target variable on the test set
+        predicted_test (np.array): predicted values of the target variable on the test set
+        actual_train (np.array): set of true values of the target variable on the train set
+        predicted_train (np.array): predicted values of the target variable on the train set
         list_features (List[str]): list of categorical features where to separatelly evaluate the model
         results (dict): dictionary containing the results of the model evaluation
 
