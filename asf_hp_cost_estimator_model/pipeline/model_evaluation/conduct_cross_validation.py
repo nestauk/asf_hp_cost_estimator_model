@@ -12,10 +12,7 @@ from sklearn.inspection import (
 import logging
 from typing import Tuple, List
 import os
-from sklearn.metrics import (
-    mean_absolute_error,
-    median_absolute_error,
-)
+from sklearn.metrics import mean_absolute_error, median_absolute_error, r2_score
 import datetime as dt
 from sklearn.pipeline import Pipeline
 
@@ -47,85 +44,142 @@ if not os.path.isdir(model_evaluation_folder):
 
 def update_error_results(
     results: List[dict],
-    actual: np.array,
-    predicted: np.array,
-    proportion_train_after_date: float,
-    after_date_test: np.array,
+    actual_train: np.array,
+    predicted_train: np.array,
+    train_dates: np.array,
+    actual_test: np.array,
+    predicted_test: np.array,
+    test_dates: np.array,
+    after_date: str,
 ) -> List[dict]:
     """
-    Update error results after testing the model trained on a new fold.
+    Update error results after testing the model trained on a new fold for both train and test sets.
 
     Args:
         results (List[dict]): List of dictionaries containing the results of the model evaluation
-        actual (np.array): true values of the target variable
-        predicted (np.array): predicted values of the target variable
-        proportion_train_after_date (float): proportion of training data after a fixed date
-        after_date_test (np.array): array of booleans indicating which samples of the testing data is after a fixed date
+        actual_train (np.array): True values of the target variable for training set
+        predicted_train (np.array): Predicted values of the target variable for training set
+        train_dates (np.array): Dates corresponding to the training set samples
+        actual_test (np.array): True values of the target variable for testing set
+        predicted_test (np.array): Predicted values of the target variable for testing set
+        test_dates (np.array): Dates corresponding to the testing set samples
+        after_date (str): The date threshold to split the data
 
     Returns:
-        List[dict]: updated error results
+        List[dict]: Updated error results
     """
 
-    under_predictions = np.where(predicted < actual, True, False)
-    over_predictions = np.where(predicted > actual, True, False)
+    # Compute 'after_date' boolean arrays
+    after_date_train = train_dates >= np.datetime64(after_date)
+    after_date_test = test_dates >= np.datetime64(after_date)
 
+    # Compute proportion of training/test data after the date
+    proportion_train_after_date = after_date_train.sum() / len(train_dates)
+    proportion_test_after_date = after_date_test.sum() / len(test_dates)
+
+    # Compute errors for training set
+    under_train = predicted_train < actual_train
+    over_train = predicted_train > actual_train
+
+    # Compute errors for testing set
+    under_test = predicted_test < actual_test
+    over_test = predicted_test > actual_test
+
+    # Append results with consistent naming
     results.append(
         {
-            "Proportion of train set after date: ": proportion_train_after_date,
-            "Mean absolute error": round(mean_absolute_error(actual, predicted), 2),
-            "Median absolute error": round(
-                median_absolute_error(actual, predicted),
-                2,
+            # Training set results
+            "train_r2_score": r2_score(actual_train, predicted_train),
+            "train_mae": mean_absolute_error(actual_train, predicted_train),
+            "train_mdae": median_absolute_error(actual_train, predicted_train),
+            "train_percent_over_predictions": np.mean(over_train) * 100,
+            "train_mae_over_predictions": mean_absolute_error(
+                actual_train[over_train], predicted_train[over_train]
             ),
-            "Percentage of over-predictions": np.mean(predicted > actual) * 100,
-            "Mean absolute error for over-prediction": round(
-                mean_absolute_error(
-                    actual[over_predictions], predicted[over_predictions]
-                ),
-                2,
+            "train_mdae_over_predictions": median_absolute_error(
+                actual_train[over_train], predicted_train[over_train]
             ),
-            "Median absolute error for over-prediction": round(
-                median_absolute_error(
-                    actual[over_predictions], predicted[over_predictions]
-                ),
-                2,
+            "train_percent_under_predictions": np.mean(under_train) * 100,
+            "train_mae_under_predictions": mean_absolute_error(
+                actual_train[under_train], predicted_train[under_train]
             ),
-            "Percentage of under-predictions": np.mean(predicted < actual) * 100,
-            "Mean absolute error for under-prediction": round(
-                mean_absolute_error(
-                    actual[under_predictions], predicted[under_predictions]
-                ),
-                2,
+            "train_mdae_under_predictions": median_absolute_error(
+                actual_train[under_train], predicted_train[under_train]
             ),
-            "Median absolute error for under-prediction": round(
-                median_absolute_error(
-                    actual[under_predictions], predicted[under_predictions]
-                ),
-                2,
+            f"prop_train_set_after_{after_date}": proportion_train_after_date,
+            f"train_mae_after_{after_date}": mean_absolute_error(
+                actual_train[after_date_train], predicted_train[after_date_train]
             ),
-            "Proportion of test set after date: ": after_date_test.sum() / len(actual),
-            "Mean absolute error after date": round(
-                mean_absolute_error(
-                    actual[after_date_test], predicted[after_date_test]
-                ),
-                2,
+            f"train_mdae_after_{after_date}": median_absolute_error(
+                actual_train[after_date_train], predicted_train[after_date_train]
             ),
-            "Median absolute error after date": round(
-                median_absolute_error(
-                    actual[after_date_test], predicted[after_date_test]
-                ),
-                2,
+            # Test set results (updated to match train)
+            "test_r2_score": r2_score(actual_test, predicted_test),
+            "test_mae": mean_absolute_error(actual_test, predicted_test),
+            "test_mdae": median_absolute_error(actual_test, predicted_test),
+            "test_percent_over_predictions": np.mean(over_test) * 100,
+            "test_mae_over_predictions": mean_absolute_error(
+                actual_test[over_test], predicted_test[over_test]
+            ),
+            "test_mdae_over_predictions": median_absolute_error(
+                actual_test[over_test], predicted_test[over_test]
+            ),
+            "test_percent_under_predictions": np.mean(under_test) * 100,
+            "test_mae_under_predictions": mean_absolute_error(
+                actual_test[under_test], predicted_test[under_test]
+            ),
+            "test_mdae_under_predictions": median_absolute_error(
+                actual_test[under_test], predicted_test[under_test]
+            ),
+            f"prop_test_set_after_{after_date}": proportion_test_after_date,
+            f"test_mae_after_{after_date}": mean_absolute_error(
+                actual_test[after_date_test], predicted_test[after_date_test]
+            ),
+            f"test_mdae_after_{after_date}": median_absolute_error(
+                actual_test[after_date_test], predicted_test[after_date_test]
             ),
         }
     )
     return results
 
 
+def create_group_data(
+    data: pd.DataFrame,
+    index: np.array,
+    feature: str,
+    actual: np.array,
+    predicted: np.array,
+) -> pd.DataFrame:
+    """
+    Create a group data for a specific feature.
+
+    Args:
+        data (pd.DataFrame): model data
+        index (np.array): indices of the data
+        feature (str): feature to separate the data
+        actual (np.array): true values of the target variable
+        predicted (np.array): predicted values of the target variable
+    Returns:
+        pd.DataFrame: group data
+    """
+
+    group_data = data.iloc[index].copy()
+    group_data["actual"] = actual
+    group_data["predicted"] = predicted
+    group_data["over_prediction"] = group_data["predicted"] > group_data["actual"]
+    group_data["under_prediction"] = group_data["predicted"] < group_data["actual"]
+    group_data = group_data[group_data[feature]]
+    return group_data
+
+
 def update_error_results_for_each_feature(
     model_data: pd.DataFrame,
     test_index: np.array,
-    y_test: np.array,
-    y_test_pred: np.array,
+    train_index: np.array,
+    actual_test: np.array,
+    predicted_test: np.array,
+    actual_train: np.array,
+    predicted_train: np.array,
     list_features: List[str],
     results: dict,
 ) -> dict:
@@ -146,31 +200,91 @@ def update_error_results_for_each_feature(
     """
 
     for feature in list_features:
-        group_data = model_data.iloc[test_index]
-        group_data["actual"] = y_test
-        group_data["predicted"] = y_test_pred
-        group_data = group_data[group_data[feature]]
+        group_data_test = create_group_data(
+            data=model_data,
+            index=test_index,
+            feature=feature,
+            actual=actual_test,
+            predicted=predicted_test,
+        )
+        group_data_train = create_group_data(
+            data=model_data,
+            index=train_index,
+            feature=feature,
+            actual=actual_train,
+            predicted=predicted_train,
+        )
 
         results[feature].append(
             {
-                "Mean absolute error": round(
-                    mean_absolute_error(group_data["actual"], group_data["predicted"]),
-                    2,
+                # Training set results
+                "train_r2_score": r2_score(
+                    group_data_train["actual"], group_data_train["predicted"]
                 ),
-                "Median absolute error": round(
-                    median_absolute_error(
-                        group_data["actual"], group_data["predicted"]
-                    ),
-                    2,
+                "train_mae": mean_absolute_error(
+                    group_data_train["actual"], group_data_train["predicted"]
                 ),
-                "Percentage of over-predictions": np.mean(
-                    group_data["predicted"] > group_data["actual"]
+                "train_mdae": median_absolute_error(
+                    group_data_train["actual"], group_data_train["predicted"]
+                ),
+                "train_percent_over_predictions": np.mean(
+                    group_data_train["over_prediction"]
                 )
                 * 100,
-                "Percentage of under-predictions": np.mean(
-                    group_data["predicted"] < group_data["actual"]
+                "train_mae_over_predictions": mean_absolute_error(
+                    group_data_train[group_data_train["over_prediction"]]["actual"],
+                    group_data_train[group_data_train["over_prediction"]]["predicted"],
+                ),
+                "train_mdae_over_predictions": median_absolute_error(
+                    group_data_train[group_data_train["over_prediction"]]["actual"],
+                    group_data_train[group_data_train["over_prediction"]]["predicted"],
+                ),
+                "train_percent_under_predictions": np.mean(
+                    group_data_train["under_prediction"]
                 )
                 * 100,
+                "train_mae_under_predictions": mean_absolute_error(
+                    group_data_train[group_data_train["under_prediction"]]["actual"],
+                    group_data_train[group_data_train["under_prediction"]]["predicted"],
+                ),
+                "train_mdae_under_predictions": median_absolute_error(
+                    group_data_train[group_data_train["under_prediction"]]["actual"],
+                    group_data_train[group_data_train["under_prediction"]]["predicted"],
+                ),
+                # Test set results (updated to match train format)
+                "test_r2_score": r2_score(
+                    group_data_test["actual"], group_data_test["predicted"]
+                ),
+                "test_mae": mean_absolute_error(
+                    group_data_test["actual"], group_data_test["predicted"]
+                ),
+                "test_mdae": median_absolute_error(
+                    group_data_test["actual"], group_data_test["predicted"]
+                ),
+                "test_percent_over_predictions": np.mean(
+                    group_data_test["over_prediction"]
+                )
+                * 100,
+                "test_mae_over_predictions": mean_absolute_error(
+                    group_data_test[group_data_test["over_prediction"]]["actual"],
+                    group_data_test[group_data_test["over_prediction"]]["predicted"],
+                ),
+                "test_mdae_over_predictions": median_absolute_error(
+                    group_data_test[group_data_test["over_prediction"]]["actual"],
+                    group_data_test[group_data_test["over_prediction"]]["predicted"],
+                ),
+                "test_percent_under_predictions": np.mean(
+                    group_data_test["under_prediction"]
+                )
+                * 100,
+                "test_mae_under_predictions": mean_absolute_error(
+                    group_data_test[group_data_test["under_prediction"]]["actual"],
+                    group_data_test[group_data_test["under_prediction"]]["predicted"],
+                ),
+                "test_mdae_under_predictions": median_absolute_error(
+                    group_data_test[group_data_test["under_prediction"]]["actual"],
+                    group_data_test[group_data_test["under_prediction"]]["predicted"],
+                ),
             }
         )
 
@@ -262,47 +376,48 @@ def perform_kfold_cross_validation(
         # Fit the model
         model = fit_model(model_data, X_train, y_train, date_double_weights)
 
-        # Predict on the test set
+        # Model predictions
         y_test_pred = model.predict(X_test)
+        y_train_pred = model.predict(X_train)
 
-        # Predict with a constant model (based on the mean of the training set)
+        # Constant model predictions (based on the mean of the training set)
         # this is used to assess how good the model is compared to a simple model
         y_test_pred_constant = np.full_like(y_test, np.mean(y_train), dtype=np.double)
-
-        # Calculate the proportion of training data after a fixed date
-        after_date = model_data[
-            (model_data["commission_date"] >= config["date_for_latest_predictions"])
-        ]
-        after_date_train = after_date[after_date.index.isin(X_train.index)]
-        proportion_train_after_date = len(after_date_train) / len(X_train)
-
-        # Calculate the proportion of testing data after a fixed date
-        after_date_test = np.where(X_test.index.isin(after_date.index), True, False)
-
-        # Update the results of the constant model with fold specific results
-        results_constant = update_error_results(
-            results=results_constant,
-            actual=y_test,
-            predicted=y_test_pred_constant,
-            proportion_train_after_date=proportion_train_after_date,
-            after_date_test=after_date_test,
-        )
+        y_train_pred_constant = np.full_like(y_train, np.mean(y_train), dtype=np.double)
 
         # Update the results of the model with fold specific results
         results_model = update_error_results(
             results=results_model,
-            actual=y_test,
-            predicted=y_test_pred,
-            proportion_train_after_date=proportion_train_after_date,
-            after_date_test=after_date_test,
+            actual_train=y_train,
+            predicted_train=y_train_pred,
+            train_dates=model_data.iloc[X_train.index]["commission_date"].values,
+            actual_test=y_test,
+            predicted_test=y_test_pred,
+            test_dates=model_data.iloc[X_test.index]["commission_date"].values,
+            after_date=config["date_for_latest_predictions"],
+        )
+
+        # Update the results of the constant model with fold specific results
+        results_constant = update_error_results(
+            results=results_constant,
+            actual_train=y_train,
+            predicted_train=y_train_pred_constant,
+            train_dates=model_data.iloc[X_train.index]["commission_date"].values,
+            actual_test=y_test,
+            predicted_test=y_test_pred_constant,
+            test_dates=model_data.iloc[X_test.index]["commission_date"].values,
+            after_date=config["date_for_latest_predictions"],
         )
 
         # Update the results of the model with fold specific results for each dummy group
         results_per_categorical_feature = update_error_results_for_each_feature(
             model_data=model_data,
             test_index=test_index,
-            y_test=y_test,
-            y_test_pred=y_test_pred,
+            train_index=train_index,
+            actual_test=y_test,
+            predicted_test=y_test_pred,
+            actual_train=y_train,
+            predicted_train=y_train_pred,
             list_features=categorical_features,
             results=results_per_categorical_feature,
         )
@@ -362,7 +477,13 @@ if __name__ == "__main__":
 
     # Perform k-fold cross-validation
     results_constant, results_model, results_per_categorical_feature = (
-        perform_kfold_cross_validation(model_data, categorical_features, kfold_splits)
+        perform_kfold_cross_validation(
+            model_data=model_data,
+            numeric_features=numeric_features,
+            categorical_features=categorical_features,
+            target_feature=target_feature,
+            kfold_splits=kfold_splits,
+        )
     )
 
     # Summarise results from k-fold cross-validation
