@@ -37,9 +37,11 @@ asf_public_discourse_home_decarbonisation
 │    ├─ plotting_utils.py -
 ```
 
-## 🗂️ Data sources
+## 🧩 Data sources
 
 ## 🆕 Latest data
+
+## 📋 Instructions for retraining the model
 
 ## ⚙️ Setup
 
