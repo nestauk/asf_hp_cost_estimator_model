@@ -4,13 +4,17 @@ The `asf_hp_cost_estimator_model` repository contains the code to model and pred
 - in the residential properties
 - as part of a retrofit (i.e. new builds excluded)
 
+## 🧩 Data sources
+
+## 🆕 Latest data
+
 
 ## 🗂️ Repository structure
 
 Below we have the repository structure and we highlight a few of the key folders and scripts:
 
 ```
-asf_public_discourse_home_decarbonisation
+asf_hp_cost_estimator_model
 ├───config/
 │    Configuration scripts
 │    ├─ base.yaml
@@ -36,10 +40,6 @@ asf_public_discourse_home_decarbonisation
 ├───utils/
 │    ├─ plotting_utils.py -
 ```
-
-## 🧩 Data sources
-
-## 🆕 Latest data
 
 ## 📋 Instructions for retraining the model
 
