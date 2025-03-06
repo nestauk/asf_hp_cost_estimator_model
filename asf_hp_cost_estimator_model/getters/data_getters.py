@@ -11,10 +11,17 @@ regions_path = config["regions_path"]
 
 def get_enhanced_installations_data():
     mcs_enhanced_with_epc = pd.read_csv(
-        "s3://asf-core-data/outputs/MCS/mcs_installations_epc_full_250131.csv",
+        "s3://asf-core-data/outputs/MCS/mcs_installations_epc_full_240717.csv",
         usecols=config["relevant_mcs_epc_fields"],
         parse_dates=["INSPECTION_DATE", "commission_date"],
     )
+
+    # mcs_enhanced_with_epc = pd.read_parquet(
+    #     "s3://asf-daps/lakehouse/2024_Q3/processed/mcs/mcs_installations_epc_full_250217-0.parquet",
+    #     columns=config["relevant_mcs_epc_fields"],
+    # )
+    # for col in ["INSPECTION_DATE", "commission_date"]:
+    #     mcs_enhanced_with_epc[col] = pd.to_datetime(mcs_enhanced_with_epc[col])
     return mcs_enhanced_with_epc
 
 
