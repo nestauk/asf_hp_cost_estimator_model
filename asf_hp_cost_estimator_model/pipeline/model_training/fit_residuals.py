@@ -119,7 +119,7 @@ if __name__ == "__main__":
     residuals = y - y_pred
 
     logging.info("Fitting quantile regression to residuals (10th and 90th percentiles)")
-    quantiles = [0.1, 0.5, 0.9]
+    quantiles = [0.1, 0.9]
     qr_models = {}
 
     for q in quantiles:
