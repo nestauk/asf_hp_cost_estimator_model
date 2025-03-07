@@ -154,11 +154,8 @@ if __name__ == "__main__":
     coverage = np.mean((y >= lower_bound) & (y <= upper_bound))
     logging.info(f"Coverage Probability: {coverage:.2%}")
 
-    logging.info("Comptuing pinball loss for quantile regression")
-    # Lower pinball loss indicates better quantile regression perfromance;
-    # balanced losses across quantiles suggest well calibratted intervals
+    logging.info("Computing pinball loss for quantile regression")
     # It tells us how well our quantile regression predicts different parts of the residual distribution
-    # Calculate pinball loss for each quantile
     loss_10 = mean_pinball_loss(residuals, qr_models[0.1].predict(X), alpha=0.1)
     loss_90 = mean_pinball_loss(residuals, qr_models[0.9].predict(X), alpha=0.9)
 
