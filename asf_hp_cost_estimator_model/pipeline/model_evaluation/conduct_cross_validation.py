@@ -462,7 +462,9 @@ def compare_average_to_model(
     return results
 
 
-def summarise_results_categories(results_per_categorical_feature: dict) -> pd.DataFrame:
+def summarise_results_per_feature(
+    results_per_categorical_feature: dict,
+) -> pd.DataFrame:
     """
     Summarises the results of the model evaluation for each dummy feature.
 
@@ -502,7 +504,9 @@ if __name__ == "__main__":
 
     # Summarise results from k-fold cross-validation
     overall_results = compare_average_to_model(results_constant, results_model)
-    results_per_category = summarise_results_categories(results_per_categorical_feature)
+    results_per_category = summarise_results_per_feature(
+        results_per_categorical_feature
+    )
 
     # Save results
     overall_results.to_csv(
