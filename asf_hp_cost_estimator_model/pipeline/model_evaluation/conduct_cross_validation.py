@@ -356,7 +356,8 @@ def perform_kfold_cross_validation(
         kfold_splits (int): number of folds
         date_double_weights(str): date from when we start doubling the weights for instances
     Returns:
-        Tuple[List[dict], List[dict]]: results on the test and train sets
+        Tuple[List, List, dict]: tuple with cross validation results for the constant model,
+         the fitted model and for the fitted model but separately for each categorical feature
     """
     # Define input and target data
     X = model_data[numeric_features + categorical_features]
