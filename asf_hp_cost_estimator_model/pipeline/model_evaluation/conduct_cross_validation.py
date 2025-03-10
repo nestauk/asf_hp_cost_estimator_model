@@ -450,7 +450,7 @@ def compare_average_to_model(
         results_model (List[dict]): List of dictionaries containing the results of the model evaluation
 
     Returns:
-        pd.DataFrame: Dataframe with the average results of the model and the constant model
+        pd.DataFrame: Dataframe with the average evaluation results of the model and the constant model
     """
     results_model = pd.DataFrame(results_model).mean(axis=0).round(2)
 
