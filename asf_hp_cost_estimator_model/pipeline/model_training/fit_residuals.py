@@ -127,7 +127,7 @@ if __name__ == "__main__":
         qr.fit(X, residuals)
         qr_models[q] = qr
 
-    logging.info("Making predictions for different the diffeent quantiles")
+    logging.info("Making predictions for the different quantiles")
 
     # Predict residual quantiles
     lower_residuals = qr_models[0.1].predict(X)
