@@ -163,7 +163,8 @@ def create_group_data(
         actual (np.array): true values of the target variable
         predicted (np.array): predicted values of the target variable
     Returns:
-        pd.DataFrame: group data
+        pd.DataFrame: data slice with information about actual and predicted values for a specific feature,
+        as well as information about over and under predictions (as boolean columns)
     """
 
     group_data = data.iloc[index].copy()
