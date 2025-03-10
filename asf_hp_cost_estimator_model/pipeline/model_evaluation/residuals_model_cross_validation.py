@@ -27,7 +27,7 @@ from asf_hp_cost_estimator_model.pipeline.model_evaluation.conduct_cross_validat
 
 def load_model_data() -> pd.DataFrame:
     """
-    Processes MCS-EPC data and postcode data before modelling.
+    Processes MCS-EPC data and postcode data to prepare for modelling.
 
     Returns:
         pd.DataFrame: model data
