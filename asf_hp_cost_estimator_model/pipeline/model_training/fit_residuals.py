@@ -91,7 +91,7 @@ def visualise_qq_plot(residuals: np.array):
     Visualise Q-Q plot of residuals.
 
     Args:
-        residuals (np.array): modeln residuals
+        residuals (np.array): model residuals
     """
     # Q-Q plot for normality
     stats.probplot(residuals, dist="norm", plot=plt)
