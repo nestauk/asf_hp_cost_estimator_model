@@ -1,7 +1,13 @@
 """
-Script to conduct k-fold cross-validation for the residuals model.
-The residuals model is used to predict the residuals of the cost model.
-The residuals model is a quantile regression model that predicts the residuals of the cost model. The residuals model is trained on the residuals of the cost model on the training data. The residuals model is then used to predict the residuals of the cost model on the test data. The residuals model is used to predict the residuals of the cost model at the 10th and 90th quantiles. The residuals model is then used to predict the lower and upper bounds of the prediction interval for the cost model. The coverage probability of the prediction interval is calculated for the test and training data. The average coverage probability across the k-folds is calculated for the test and training data. The average coverage probability is printed to the console.
+Script to conduct k-fold cross-validation for the residuals model by assessing the
+average coverage probability across the k-folds on the test and training data i.e.
+the proportion of true values that fall within the prediction interval created for each fold.
+
+About the residuals model (created for each fold):
+- the residuals of the cost model are being modelled using a quantile regressions;
+- two quantile regressions are fitted to predict the residuals of the cost model at the 10th and 90th quantiles;
+- the two models are then used to predict the lower and upper bounds of the prediction interval for the cost model.
+- the coverage probability of the prediction interval is calculated for the test and training data.
 """
 
 # package imports
@@ -52,7 +58,7 @@ def get_prediction_intervals(
         qr_models (dict): dictionary with quantile regression models
 
     Returns:
-        tuple[np.array, np.array]: _description_
+        tuple[np.array, np.array]: lower and upper bounds of the prediction interval
     """
     lower_residuals = qr_models[0.1].predict(x)
     upper_residuals = qr_models[0.9].predict(x)
@@ -62,7 +68,10 @@ def get_prediction_intervals(
 
 
 def calculate_coverage_probability(
-    coverage_probs: list, y_true: np.array, lower_bound: np.array, upper_bound: np.array
+    coverage_probs: list,
+    y_actual: np.array,
+    lower_bound: np.array,
+    upper_bound: np.array,
 ) -> list:
     """
     Calculate the coverage probability of the prediction interval, i.e. the proportion
@@ -71,14 +80,14 @@ def calculate_coverage_probability(
 
     Args:
         coverage_probs (list): list of coverage probabilities
-        y_true (np.array): true cost values
+        y_actual (np.array): true cost values
         lower_bound (np.array): lower bound of prediction interval
         upper_bound (np.array): upper bound of prediction interval
 
     Returns:
         list: updated list of coverage probabilities
     """
-    prob = np.mean((y_true >= lower_bound) & (y_true <= upper_bound))
+    prob = np.mean((y_actual >= lower_bound) & (y_actual <= upper_bound))
     coverage_probs.append(prob)
     return coverage_probs
 
@@ -94,14 +103,14 @@ if __name__ == "__main__":
     X = model_data[numeric_features + categorical_features]
     y = model_data[target_feature].values.ravel()
 
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    kf = KFold(n_splits=5, shuffle=True, random_state=0)
 
     # Store evaluation metrics for cross-validation
     coverage_probs_test = []
     coverage_probs_train = []
 
     for train_index, test_index in kf.split(X):
-        X_train, X_test = X[train_index], X[test_index]
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
         # Train cost model on training data
