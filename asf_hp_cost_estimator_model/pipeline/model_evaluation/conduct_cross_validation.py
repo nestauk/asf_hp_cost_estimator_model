@@ -443,7 +443,7 @@ def compare_average_to_model(
     results_constant: List[dict], results_model: List[dict]
 ) -> pd.DataFrame:
     """
-    Compares the results of the model to the constant model.
+    Compares the evaluation of the results of the model to those of the constant model.
 
     Args:
         results_constant (List[dict]): List of dictionaries containing the results of the constant model evaluation
