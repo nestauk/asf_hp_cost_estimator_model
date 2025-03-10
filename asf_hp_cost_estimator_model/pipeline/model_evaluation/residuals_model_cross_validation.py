@@ -137,16 +137,16 @@ if __name__ == "__main__":
         )
 
         coverage_probs_test = calculate_coverage_probability(
-            coverage_probs_test,
-            y_test,
-            pred_interval_lower_test,
-            pred_interval_upper_test,
+            coverage_probs=coverage_probs_test,
+            y_actual=y_test,
+            lower_bound=pred_interval_lower_test,
+            upper_bound=pred_interval_upper_test,
         )
         coverage_probs_train = calculate_coverage_probability(
-            coverage_probs_train,
-            y_train,
-            pred_interval_lower_train,
-            pred_interval_upper_train,
+            coverage_probs=coverage_probs_train,
+            y_actual=y_train,
+            lower_bound=pred_interval_lower_train,
+            upper_bound=pred_interval_upper_train,
         )
 
     # Average coverage probability across folds
