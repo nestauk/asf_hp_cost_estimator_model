@@ -158,7 +158,7 @@ def create_group_data(
 
     Args:
         data (pd.DataFrame): model data
-        index (np.array): indices of the data
+        index (np.array): indices of the data to keep
         feature (str): feature to separate the data
         actual (np.array): true values of the target variable
         predicted (np.array): predicted values of the target variable
