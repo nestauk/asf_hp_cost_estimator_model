@@ -198,7 +198,7 @@ def update_error_results_for_each_feature(
         predicted_test (np.array): predicted values of the target variable on the test set
         actual_train (np.array): set of true values of the target variable on the train set
         predicted_train (np.array): predicted values of the target variable on the train set
-        list_features (List[str]): list of categorical features where to separatelly evaluate the model
+        list_features (List[str]): list of categorical features on which to separately evaluate the model
         results (dict): dictionary containing the results of the model evaluation
 
     Returns:
