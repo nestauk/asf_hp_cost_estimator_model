@@ -2,6 +2,7 @@
 Script to conduct k-fold cross-validation for the residuals model by assessing the
 average coverage probability across the k-folds on the test and training data i.e.
 the proportion of true values that fall within the prediction interval created for each fold.
+When considering the 10th and 90th quantiles, 80% of the actual values should fall within the prediction interval.
 
 About the residuals model (created for each fold):
 - the residuals of the cost model are being modelled using a quantile regressions;

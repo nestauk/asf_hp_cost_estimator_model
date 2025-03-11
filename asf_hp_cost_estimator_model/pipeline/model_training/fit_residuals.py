@@ -1,5 +1,6 @@
 """
-Fits a quantile regression model to the residuals of the cost model and computes prediction intervals for the cost model.
+Fits two quantile regression models to the residuals of the cost model to
+compute prediction intervals for the cost model.
 Results are visualised and metrics are calculated to evaluate the model's performance.
 """
 
@@ -150,7 +151,7 @@ if __name__ == "__main__":
 
     logging.info("Computing coverage probability accuracy")
     # Check if true values fall within predicted intervals
-    # For 10th to 90th percentile, about 90% of the true values should fall within the interval
+    # For 10th to 90th percentile, about 80% of the true values should fall within the interval
     coverage = np.mean((y >= lower_bound) & (y <= upper_bound))
     logging.info(f"Coverage Probability: {coverage:.2%}")
 
