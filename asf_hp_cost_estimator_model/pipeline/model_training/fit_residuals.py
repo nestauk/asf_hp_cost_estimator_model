@@ -12,6 +12,7 @@ from sklearn.metrics import mean_pinball_loss
 from sklearn.linear_model import QuantileRegressor
 import matplotlib.pyplot as plt
 import scipy.stats as stats
+import statsmodels.api as sm
 import logging
 
 # local imports
@@ -94,8 +95,8 @@ def visualise_qq_plot(residuals: np.array):
     Args:
         residuals (np.array): model residuals
     """
-    # Q-Q plot for normality
-    stats.probplot(residuals, dist="norm", plot=plt)
+
+    sm.qqplot(residuals)
     plt.title("Q-Q Plot of Residuals")
     plt.show()
 
@@ -135,7 +136,7 @@ if __name__ == "__main__":
     upper_residuals = qr_models[0.9].predict(X)
 
     # Adjust predictions based on residual quantiles
-    lower_bound = y_pred - lower_residuals
+    lower_bound = y_pred + lower_residuals
     upper_bound = y_pred + upper_residuals
 
     logging.info("visualising prediction intervals")

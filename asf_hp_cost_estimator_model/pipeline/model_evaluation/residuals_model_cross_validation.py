@@ -95,7 +95,7 @@ def get_prediction_intervals(
     """
     lower_residuals = qr_models[0.1].predict(x)
     upper_residuals = qr_models[0.9].predict(x)
-    lower_bound = y_pred - lower_residuals
+    lower_bound = y_pred + lower_residuals
     upper_bound = y_pred + upper_residuals
     return lower_bound, upper_bound
 
