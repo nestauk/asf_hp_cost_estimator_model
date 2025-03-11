@@ -1,14 +1,14 @@
 """
-Script to conduct k-fold cross-validation.
 This script conducts k-fold cross-validation across kfold splits by:
-        - computing a series of metrics for the model on training and testing sets
-        - computing a series of metrics for a constant model (a model that always predicts
-        the average cost on the training set) on training and testing sets
-        - computing a series of metrics for the model on training and testing sets for each dummy feature
-        to understand how the model performs on different groups of data.
+- computing evaluation metrics for the model on training and testing sets;
+- computing evaluation metrics for a constant model (a model that always predicts
+the average cost on the training set) on training and testing sets. This is used to compare
+the model's performance to a simple model;
+- computing evaluation metrics for the model on training and testing sets for each dummy feature
+to understand how the model performs on different groups of data.
 
-    Metrics include: r2_score, mean_absolute_error, median_absolute_error,
-    percentage of over and under predictions, mean absolute error for over and under predictions.
+Metrics include: r2_score, mean_absolute_error, median_absolute_error,
+percentage of over and under predictions, mean absolute error for over and under predictions.
 """
 
 # package imports
