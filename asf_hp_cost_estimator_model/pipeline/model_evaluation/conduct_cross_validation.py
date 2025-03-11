@@ -71,8 +71,8 @@ def update_error_results(
         train_dates (np.array): Installation commission dates of the the training set samples
         actual_test (np.array): True values of the target variable for testing set
         predicted_test (np.array): Predicted values of the target variable for testing set
-        test_dates (np.array): Installation commision dates of the the test set samples
-        after_date (str): Specifies an installation commision date to split the evaluation.
+        test_dates (np.array): Installation commission dates of the the test set samples
+        after_date (str): Specifies an installation commission date to split the evaluation.
         The model's performance will be evaluated separately on instances that occur after this date.
 
     Returns:
