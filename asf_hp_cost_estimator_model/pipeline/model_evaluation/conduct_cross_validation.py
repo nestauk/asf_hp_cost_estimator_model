@@ -87,11 +87,11 @@ def update_error_results(
     proportion_train_after_date = after_date_train.sum() / len(train_dates)
     proportion_test_after_date = after_date_test.sum() / len(test_dates)
 
-    # Compute errors for training set
+    # Booleans flagging under- and over-precitions in the training set
     under_train = predicted_train < actual_train
     over_train = predicted_train > actual_train
 
-    # Compute errors for testing set
+    # Booleans flagging under- and over-precitions in the test set
     under_test = predicted_test < actual_test
     over_test = predicted_test > actual_test
 
