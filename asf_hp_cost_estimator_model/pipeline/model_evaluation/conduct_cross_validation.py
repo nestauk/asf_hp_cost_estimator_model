@@ -68,7 +68,7 @@ def update_error_results(
         results (List[dict]): List of dictionaries containing the results of the model evaluation
         actual_train (np.array): True values of the target variable for training set
         predicted_train (np.array): Predicted values of the target variable for training set
-        train_dates (np.array): Installation commision dates of the the training set samples
+        train_dates (np.array): Installation commission dates of the the training set samples
         actual_test (np.array): True values of the target variable for testing set
         predicted_test (np.array): Predicted values of the target variable for testing set
         test_dates (np.array): Installation commision dates of the the test set samples
