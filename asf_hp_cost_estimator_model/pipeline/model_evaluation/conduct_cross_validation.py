@@ -91,7 +91,7 @@ def update_error_results(
     under_train = predicted_train < actual_train
     over_train = predicted_train > actual_train
 
-    # Booleans flagging under- and over-precitions in the test set
+    # Booleans flagging under- and over-predictions in the test set
     under_test = predicted_test < actual_test
     over_test = predicted_test > actual_test
 
