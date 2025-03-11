@@ -16,6 +16,7 @@ from sklearn.model_selection import KFold
 from sklearn.linear_model import QuantileRegressor
 import numpy as np
 import logging
+from sklearn.pipeline import Pipeline
 
 # local imports
 from asf_hp_cost_estimator_model.pipeline.data_processing.process_installations_data import (
@@ -26,9 +27,40 @@ from asf_hp_cost_estimator_model.getters.data_getters import (
     get_postcodes_data,
 )
 from asf_hp_cost_estimator_model import config
-from asf_hp_cost_estimator_model.pipeline.model_evaluation.conduct_cross_validation import (
-    fit_model,
+from asf_hp_cost_estimator_model.pipeline.model_training.fit_cost_model import (
+    set_up_pipeline,
 )
+
+
+def fit_model(
+    model_data: pd.DataFrame,
+    X_train: pd.DataFrame,
+    y_train: np.array,
+    date_double_weights: str = config["date_double_weights"],
+) -> Pipeline:
+    """
+    Fit the model on the training data.
+    Args:
+        model_data (pd.DataFrame): model data
+        X_train (pd.DataFrame): training data
+        y_train (np.array): training target
+        date_double_weights (str, optional): date from when we double the weights. Defaults to config["date_double_weights"].
+    Returns:
+        Pipeline: fitted model pipeline
+    """
+
+    # To codify increased reliability in data after a certain date double the weight of the samples
+    train_weights = np.where(
+        model_data.loc[X_train.index]["commission_date"] >= date_double_weights,
+        2,
+        1,
+    )
+
+    # Set up the sklearn pipeline and fit
+    model = set_up_pipeline()
+    model.fit(X_train, y_train, regressor__sample_weight=train_weights)
+
+    return model
 
 
 def load_model_data() -> pd.DataFrame:
