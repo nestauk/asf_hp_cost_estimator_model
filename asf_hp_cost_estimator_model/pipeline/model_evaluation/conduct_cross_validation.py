@@ -198,7 +198,7 @@ def update_error_results_for_each_feature(
 ) -> dict:
     """
     Update error results after testing the model trained on a new fold
-    for each feature in the list of features.
+    for each categorical feature in list_features.
 
     Args:
         model_data (pd.DataFrame): model data
