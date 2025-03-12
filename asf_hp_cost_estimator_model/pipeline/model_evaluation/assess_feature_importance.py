@@ -31,7 +31,7 @@ def assess_feature_importance(
         model (BaseEstimator): an sklearn regression model
 
     Returns:
-        pd.DataFrame: a dataframw with feature importance values for each feature
+        pd.DataFrame: a dataframe with feature importance values for each feature
     """
     feat_imp = pd.DataFrame(index=features)
     feat_imp["feature_importance"] = model.feature_importances_

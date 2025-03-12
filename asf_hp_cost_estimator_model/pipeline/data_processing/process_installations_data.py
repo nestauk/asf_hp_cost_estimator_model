@@ -61,7 +61,7 @@ def remove_properties_with_hp_when_built(
         "CONSTRUCTION_AGE_BAND",
     ] = "2007 onwards"
 
-    new_dwellings["days_between_inspection_and_hp_comission"] = (
+    new_dwellings["days_between_inspection_and_hp_comission"] = abs(
         new_dwellings["commission_date"] - new_dwellings["INSPECTION_DATE"]
     )
 
@@ -90,9 +90,8 @@ def filter_to_relevant_samples(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     Filter HP installation data to samples that are useful for modelling.
     Samples useful for modelling are:
     - ASHP installations
-    - Linked to an EPC
     - Cost not NA
-    - INSPECTION_DATE is not null
+    - INSPECTION_DATE is not null (installation is linked to an EPC)
 
     Args:
         mcs_epc_data (pd.DataFrame): MCS-EPC records.
@@ -100,11 +99,9 @@ def filter_to_relevant_samples(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Records relevant for modelling.
     """
-
     filtered_data = mcs_epc_data.loc[
         (mcs_epc_data["tech_type"] == "Air Source Heat Pump")
-        & ~mcs_epc_data["original_epc_index"].isna()  # has an EPC certificate
-        & ~mcs_epc_data["INSPECTION_DATE"].isnull()
+        & ~mcs_epc_data["INSPECTION_DATE"].isnull()  # has an EPC certificate
         & ~mcs_epc_data["cost"].isna()
     ].reset_index(drop=True)
 
@@ -127,6 +124,7 @@ def remove_samples_exclusion_criteria(
     Returns:
         pd.DataFrame: Records relevant for modelling.
     """
+
     filtered_data = mcs_epc_data.copy()
 
     if "TOTAL_FLOOR_AREA_lower_bound" in exclusion_criteria_dict:
@@ -315,12 +313,11 @@ def dummify_variables(
     for col in ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]:
         mcs_epc_data[col] = mcs_epc_data[col].replace(np.nan, "unknown")
 
-    mcs_epc_data["region_name"] = mcs_epc_data["region_name"].apply(
-        lambda x: x.lower().replace(" ", "_")
+    mcs_epc_data["region_name"] = (
+        mcs_epc_data["region_name"].str.lower().str.replace(" ", "_")
     )
-
-    mcs_epc_data["BUILT_FORM"] = mcs_epc_data["BUILT_FORM"].apply(
-        lambda x: x.lower().replace(" ", "_")
+    mcs_epc_data["BUILT_FORM"] = (
+        mcs_epc_data["BUILT_FORM"].str.lower().str.replace(" ", "_")
     )
     mcs_epc_data["BUILT_FORM"] = mcs_epc_data["BUILT_FORM"].apply(
         lambda x: x.replace(

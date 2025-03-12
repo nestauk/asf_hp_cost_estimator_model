@@ -93,7 +93,7 @@ def plot_residuals_numeric_variables(
     # Add title and labels
     plt.title("Residuals for " + x_label)
     plt.xlabel(x_label)
-    plt.ylabel("Actual - Predicted (£)")
+    plt.ylabel("Actual - Predicted Cost (£)")
 
     plt.tight_layout()
     plt.show()
