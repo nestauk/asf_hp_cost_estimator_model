@@ -81,7 +81,7 @@ def perform_kfold_cross_validation(
     target_feature: str,
     kfold_splits: int,
     date_double_weights: str,
-) -> Tuple[List[dict], List[dict]]:
+) -> List[dict]:
     """
     Performs k-fold cross-validation.
 
@@ -94,7 +94,7 @@ def perform_kfold_cross_validation(
         date_double_weights(str): date from when we start doubling the weights for installations
 
     Returns:
-        Tuple[List[dict], List[dict]]: results on the test and train sets
+        List[dict]: results on the test and train sets
     """
     # Define input and target data
     X = model_data[numeric_features + categorical_features]
@@ -104,8 +104,7 @@ def perform_kfold_cross_validation(
     kf = KFold(n_splits=kfold_splits, shuffle=True, random_state=0)
 
     # Initialise result variables
-    results_model_train = []
-    results_model_test = []
+    results_model = []
     first_fold = True
 
     # K-fold cross-validation
@@ -130,41 +129,22 @@ def perform_kfold_cross_validation(
         y_test_pred = model.predict(X_test)
         y_train_pred = model.predict(X_train)
 
-        # Calculate the proportion of training data after a fixed date (for evaluating performance on latest prediction)
-        after_date = model_data[
-            (model_data["commission_date"] >= config["date_for_latest_predictions"])
-        ]
-        after_date_train = after_date[after_date.index.isin(X_train.index)]
-        proportion_train_after_date = len(after_date_train) / len(X_train)
-
-        # Calculate the proportion of testing data after a fixed date
-        after_date_test = np.where(X_test.index.isin(after_date.index), True, False)
-        after_date_train = np.where(X_train.index.isin(after_date.index), True, False)
-
         # Update the results of the model with fold specific results
-        results_model_test = update_error_results(
-            results_model_test,
-            y_test,
-            y_test_pred,
-            proportion_train_after_date,
-            after_date_test,
+        results_model = update_error_results(
+            results=results_model,
+            actual_train=y_train,
+            predicted_train=y_train_pred,
+            train_dates=model_data.iloc[X_train.index]["commission_date"].values,
+            actual_test=y_test,
+            predicted_test=y_test_pred,
+            test_dates=model_data.iloc[X_test.index]["commission_date"].values,
+            after_date=config["date_for_latest_predictions"],
         )
-
-        results_model_train = update_error_results(
-            results_model_train,
-            y_train,
-            y_train_pred,
-            proportion_train_after_date,
-            after_date_train,
-        )
-
-    return results_model_test, results_model_train
+    return results_model
 
 
 if __name__ == "__main__":
-    results_test = {}
-    results_train = {}
-
+    results = {}
     # Parameters to tune include model hyperparameters and data parameters
     all_params = data_params | model_params
 
@@ -240,7 +220,7 @@ if __name__ == "__main__":
         )
 
         # Performing k-fold cross-validation
-        results_model_test, results_model_train = perform_kfold_cross_validation(
+        results_model = perform_kfold_cross_validation(
             model_data=model_data,
             numeric_features=numeric_features,
             categorical_features=categorical_features,
@@ -250,25 +230,15 @@ if __name__ == "__main__":
         )
 
         # Averaging the results for the specific combination across the different folds
-        results_test[", ".join(map(str, combination))] = (
-            pd.DataFrame(results_model_test).mean().round(2).to_dict()
-        )
-        results_train[", ".join(map(str, combination))] = (
-            pd.DataFrame(results_model_test).mean().round(2).to_dict()
+        results[", ".join(map(str, combination))] = (
+            pd.DataFrame(results_model).mean().round(2).to_dict()
         )
 
     # Saving the results
     with open(
         os.path.join(
-            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_test.json"
+            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_results.json"
         ),
         "w",
     ) as f:
-        json.dump(results_test, f)
-    with open(
-        os.path.join(
-            PROJECT_DIR, "outputs/model_evaluation/hyperparameter_tuning_train.json"
-        ),
-        "w",
-    ) as f:
-        json.dump(results_train, f)
+        json.dump(results, f)
