@@ -125,7 +125,8 @@ if __name__ == "__main__":
     qr_models = {}
 
     for q in quantiles:
-        qr = QuantileRegressor(quantile=q)
+        print(f"quantile {q}")
+        qr = QuantileRegressor(quantile=q, solver="highs")
         qr.fit(X, residuals)
         qr_models[q] = qr
 
