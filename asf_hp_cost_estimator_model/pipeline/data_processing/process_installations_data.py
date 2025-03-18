@@ -260,14 +260,14 @@ def dummify_variables(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     """
 
     age_bands_mapping = {
-        "England and Wales: before 1900": "pre-1929",
-        "Scotland: before 1919": "pre-1929",
-        "1900-1929": "pre-1929",
+        "England and Wales: before 1900": "pre_1929",
+        "Scotland: before 1919": "pre_1929",
+        "1900-1929": "pre_1929",
         "1930-1949": "between_1930_1966",
         "1950-1966": "between_1930_1966",
         "1965-1975": "between_1965_1983",
         "1976-1983": "between_1965_1983",
-        "2007 onwards": "2007 onwards",
+        "2007 onwards": "2007_onwards",
         np.nan: "unknown",
     }
 
@@ -303,6 +303,9 @@ def dummify_variables(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
             ),
         )
     )
+
+    for col in ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]:
+        mcs_epc_data[col] = mcs_epc_data[col].str.replace("-", "_")
 
     mcs_epc_data = pd.get_dummies(
         mcs_epc_data,
