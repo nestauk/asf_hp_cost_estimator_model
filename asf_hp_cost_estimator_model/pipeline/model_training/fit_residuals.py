@@ -9,9 +9,7 @@ import pandas as pd
 import pickle
 import numpy as np
 from sklearn.metrics import mean_pinball_loss
-from sklearn.linear_model import QuantileRegressor
 import matplotlib.pyplot as plt
-import scipy.stats as stats
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import logging
@@ -188,8 +186,6 @@ if __name__ == "__main__":
 
     for q in quantiles:
         print(f"quantile {q}")
-        # qr = QuantileRegressor(quantile=q, solver="highs", alpha=0)
-        # qr.fit(X, residuals)
         qr = smf.quantreg(f"residuals ~ {all_features}", model_data).fit(q=q)
 
         qr_models[q] = qr
@@ -237,7 +233,7 @@ if __name__ == "__main__":
     logging.info(f"Coverage Probability: {coverage:.2%}")
 
     logging.info("Computing pinball loss for quantile regression")
-    # It tells us how well our quantile regression predicts different parts of the residual distribution
+    # On average, how much are our lower and upper bounds off from the true values?
     loss_10 = mean_pinball_loss(
         y_true=residuals, y_pred=qr_models[0.1].predict(X), alpha=0.1
     )
