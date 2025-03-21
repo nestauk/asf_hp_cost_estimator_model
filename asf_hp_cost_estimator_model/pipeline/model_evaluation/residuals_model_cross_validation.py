@@ -14,7 +14,7 @@ About the residuals model (created for each fold):
 # package imports
 import pandas as pd
 from sklearn.model_selection import KFold
-from sklearn.linear_model import QuantileRegressor
+import statsmodels.formula.api as smf
 import numpy as np
 import logging
 from sklearn.pipeline import Pipeline
@@ -147,26 +147,35 @@ if __name__ == "__main__":
         y_train, y_test = y[train_index], y[test_index]
 
         # Train cost model on training data
-        cost_model = fit_model()
+        cost_model = fit_model(model_data=model_data, X_train=X_train, y_train=y_train)
 
         # Compute residuals on training data
         cost_y_train_pred = cost_model.predict(X_train)
         residuals = y_train - cost_y_train_pred
+        X_train["residuals"] = residuals
 
-        # Fit quantile regression model on residuals
+        logging.info(
+            "Fitting quantile regression to residuals (10th and 90th percentiles)"
+        )
         quantiles = [0.1, 0.9]
         qr_models = {}
 
+        all_features = numeric_features + categorical_features
+        X_train = X_train[all_features + ["residuals"]]
+        X_test = X_test[all_features]
+        all_features = " + ".join(all_features)
+
         for q in quantiles:
-            qr = QuantileRegressor(quantile=q)
-            qr.fit(X_train, residuals)
+            print(f"quantile {q}")
+            qr = smf.quantreg(f"residuals ~ {all_features}", X_train).fit(q=q)
+
             qr_models[q] = qr
 
         pred_interval_lower_test, pred_interval_upper_test = get_prediction_intervals(
             X_test, cost_model.predict(X_test), qr_models
         )
         pred_interval_lower_train, pred_interval_upper_train = get_prediction_intervals(
-            X_train, cost_model.predict(X_train), qr_models
+            X_train, cost_model.predict(X_train.drop(columns=["residuals"])), qr_models
         )
 
         coverage_probs_test = calculate_coverage_probability(
@@ -187,5 +196,5 @@ if __name__ == "__main__":
         f"Average Coverage Probability for test set: {np.mean(coverage_probs_test):.2%}"
     )
     logging.info(
-        f"Average Coverage Probability for test set: {np.mean(coverage_probs_train):.2%}"
+        f"Average Coverage Probability for training set: {np.mean(coverage_probs_train):.2%}"
     )
