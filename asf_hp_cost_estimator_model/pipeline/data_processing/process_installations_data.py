@@ -393,22 +393,29 @@ def process_data_before_modelling(
     Returns:
         pd.Dataframe: Suitable MCS-EPC data.
     """
-    mcs_epc_data = remove_properties_with_hp_when_built(
-        mcs_epc_data, hp_when_built_threshold
+    enhanced_installations_data = mcs_epc_data.copy()
+    enhanced_installations_data = remove_properties_with_hp_when_built(
+        enhanced_installations_data, hp_when_built_threshold
     )
 
-    mcs_epc_data = filter_to_relevant_samples(mcs_epc_data)
-
-    mcs_epc_data = remove_samples_exclusion_criteria(
-        mcs_epc_data, exclusion_criteria_dict
+    enhanced_installations_data = filter_to_relevant_samples(
+        enhanced_installations_data
     )
 
-    mcs_epc_data = choose_epc_records(mcs_epc_data)
+    enhanced_installations_data = remove_samples_exclusion_criteria(
+        enhanced_installations_data, exclusion_criteria_dict
+    )
 
-    mcs_epc_data = join_postcode_data(mcs_epc_data, postcodes_data)
+    enhanced_installations_data = choose_epc_records(enhanced_installations_data)
 
-    mcs_epc_data = add_n_days_col(mcs_epc_data, min_date)
+    enhanced_installations_data = join_postcode_data(
+        enhanced_installations_data, postcodes_data
+    )
 
-    mcs_epc_data = dummify_variables(mcs_epc_data, rooms_as_categorical)
+    enhanced_installations_data = add_n_days_col(enhanced_installations_data, min_date)
 
-    return mcs_epc_data
+    enhanced_installations_data = dummify_variables(
+        enhanced_installations_data, rooms_as_categorical
+    )
+
+    return enhanced_installations_data
