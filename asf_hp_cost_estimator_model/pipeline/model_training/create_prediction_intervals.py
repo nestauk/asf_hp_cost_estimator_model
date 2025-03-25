@@ -25,6 +25,10 @@ from asf_hp_cost_estimator_model.getters.data_getters import (
 )
 from asf_hp_cost_estimator_model import config, PROJECT_DIR
 
+path_to_output_data = os.path.join(PROJECT_DIR, "outputs/data")
+if not os.path.exists(path_to_output_data):
+    os.makedirs(path_to_output_data)
+
 
 def load_model():
     with open("outputs/models/staging/model.pickle", "rb") as f:
@@ -74,7 +78,7 @@ def save_predictions_and_residuals(
             "upper_residuals": upper_residuals,
         }
     )
-    results.to_csv(os.path.join(PROJECT_DIR, "outputs/data/prediction_intervals.csv"))
+    results.to_csv(os.path.join(path_to_output_data, "prediction_intervals.csv"))
 
 
 def visualise_prediction_against_perfect_prediction(y: np.array, y_pred: np.array):
