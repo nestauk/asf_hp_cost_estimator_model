@@ -11,7 +11,7 @@ regions_path = config["regions_path"]
 
 def get_enhanced_installations_data():
     mcs_enhanced_with_epc = pd.read_csv(
-        "s3://asf-core-data/outputs/MCS/mcs_installations_epc_full_250131.csv",
+        "s3://asf-core-data/outputs/MCS/mcs_installations_epc_full_250310.csv",
         usecols=config["relevant_mcs_epc_fields"],
         parse_dates=["INSPECTION_DATE", "commission_date"],
     )
