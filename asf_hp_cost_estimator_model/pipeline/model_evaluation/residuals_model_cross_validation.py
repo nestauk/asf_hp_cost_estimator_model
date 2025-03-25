@@ -172,10 +172,12 @@ if __name__ == "__main__":
             qr_models[q] = qr
 
         pred_interval_lower_test, pred_interval_upper_test = get_prediction_intervals(
-            X_test, cost_model.predict(X_test), qr_models
+            x=X_test, y_pred=cost_model.predict(X_test), qr_models=qr_models
         )
         pred_interval_lower_train, pred_interval_upper_train = get_prediction_intervals(
-            X_train, cost_model.predict(X_train.drop(columns=["residuals"])), qr_models
+            x=X_train,
+            y_pred=cost_model.predict(X_train.drop(columns=["residuals"])),
+            qr_models=qr_models,
         )
 
         coverage_probs_test = calculate_coverage_probability(
