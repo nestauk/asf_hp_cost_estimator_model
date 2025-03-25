@@ -2,10 +2,16 @@
 Hyperparameter tuning script to find the best hyperparameters for the model.
 
 To run the script:
-python asf_hp_cost_estimator_model/pipeline/hyperparameter_tuning/hyperparameter_tuning.py --datastore=s3 --package-suffixes=.txt run --max-num-splits 2000 --max-workers 100
+python asf_hp_cost_estimator_model/pipeline/hyperparameter_tuning/hyperparameter_tuning.py --datastore=s3 --package-suffixes=.txt run --max-num-splits 10  --max-workers 4
 """
 
 # package imports
+import os
+
+os.system(
+    f"pip install -r {os.path.dirname(os.path.realpath(__file__))}/ht_flow_requirements.txt 1> /dev/null"
+)
+
 import numpy as np
 import pandas as pd
 import json
@@ -20,22 +26,10 @@ import datetime as dt
 import numpy as np
 from itertools import product
 from sklearn.pipeline import Pipeline
-import os
 
-os.system(
-    f"pip install -r {os.path.dirname(os.path.realpath(__file__))}/ht_flow_requirements.txt 1> /dev/null"
-)
-
-from metaflow import FlowSpec, step, S3, batch, Parameter
+from metaflow import FlowSpec, step, S3, Parameter
 
 # local imports
-from asf_hp_cost_estimator_model.getters.data_getters import (
-    get_enhanced_installations_data,
-    get_postcodes_data,
-)
-from asf_hp_cost_estimator_model.pipeline.data_processing.process_installations_data import (
-    process_data_before_modelling,
-)
 from asf_hp_cost_estimator_model.pipeline.model_evaluation.conduct_cross_validation import (
     update_error_results,
 )
@@ -156,7 +150,7 @@ def perform_kfold_cross_validation(
 class CostModelHyperparameterTuning(FlowSpec):
     # Setting all parameters to tune as a parameter for ease of use
     all_params = Parameter(
-        name="all_param",
+        name="all_params",
         help="Parameters to tune include model hyperparameters and data parameters",
         default=data_params | model_params,
     )
@@ -166,8 +160,20 @@ class CostModelHyperparameterTuning(FlowSpec):
         """
         Starts the flow.
         """
+        import random
+
         # Generating all combinations of parameters to tune through grid search
         self.param_combinations = list(product(*self.all_params.values()))
+
+        print(
+            "Number of parameter combinations to test: ", len(self.param_combinations)
+        )
+
+        # Limiting the number of combinations to 200
+        self.param_combinations = random.sample(
+            self.param_combinations, min(200, len(self.param_combinations))
+        )
+        print("We're testing 200 random combinations")
 
         self.next(self.create_chunks_of_params)
 
@@ -176,28 +182,38 @@ class CostModelHyperparameterTuning(FlowSpec):
         """
         Creates chunks of 25 parameter combinations to be processed in parallel.
         """
+        from asf_hp_cost_estimator_model.getters.data_getters import (
+            get_enhanced_installations_data,
+            get_postcodes_data,
+        )
+
         self.chunks_of_param_combinations = [
             self.param_combinations[i : i + 25]
             for i in range(0, len(self.param_combinations), 25)
         ]
+
+        # Data required for the model
+        self.mcs_epc_data = get_enhanced_installations_data()
+        self.postcodes_data = get_postcodes_data()
+
         self.next(
             self.perform_hyperparameter_tuning, foreach="chunks_of_param_combinations"
         )
 
-    @batch
+    # @batch()
     @step
     def perform_hyperparameter_tuning(self):
         """
         Perform hyperparameter tuning through grid search.
         """
+        from asf_hp_cost_estimator_model.pipeline.data_processing.process_installations_data import (
+            process_data_before_modelling,
+        )
+
         self.chunk_results = {}
         # Grid search: Iterate through each possible combination
         for combination in self.input:
             param_dict = dict(zip(self.all_params.keys(), combination))
-
-            # Data is required to be loaded for each combination
-            mcs_epc_data = get_enhanced_installations_data()
-            postcodes_data = get_postcodes_data()
 
             # Getting the pre-defined features and target
             numeric_features = config["numeric_features"]
@@ -254,8 +270,8 @@ class CostModelHyperparameterTuning(FlowSpec):
 
             # Processing data before modelling
             model_data = process_data_before_modelling(
-                mcs_epc_data=mcs_epc_data,
-                postcodes_data=postcodes_data,
+                mcs_epc_data=self.mcs_epc_data,
+                postcodes_data=self.postcodes_data,
                 exclusion_criteria_dict=exclusion_dict,
                 min_date=param_dict["installations_start_date"],
                 rooms_as_categorical=rooms_as_categorical,
@@ -285,7 +301,7 @@ class CostModelHyperparameterTuning(FlowSpec):
         """
         self.results = {}
         for input in inputs:
-            self.results.update(input)
+            self.results.update(input.chunk_results)
         self.next(self.save_results)
 
     @step
