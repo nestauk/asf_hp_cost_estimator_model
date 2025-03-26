@@ -56,6 +56,7 @@ categorical_features: [
     #'CONSTRUCTION_AGE_BAND_2007 onwards',
     "CONSTRUCTION_AGE_BAND_between_1930_1966",
     "CONSTRUCTION_AGE_BAND_between_1965_1983",
+    "CONSTRUCTION_AGE_BAND_between_1983_2007",
     "CONSTRUCTION_AGE_BAND_pre-1929",
     "region_name_east_midlands",
     "region_name_east_of_england",

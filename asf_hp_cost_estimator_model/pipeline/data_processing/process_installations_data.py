@@ -9,6 +9,62 @@ import pandas as pd
 from asf_hp_cost_estimator_model import config
 
 
+def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Update CONSTRUCTION_AGE_BAND for new dwellings when missing.
+
+    Args:
+        mcs_epc_data (pd.DataFrame):  MCS HP records joined to EPC. Assumed to
+        contain INSPECTION_DATE, TRANSACTION_TYPE, TENURE, commission_date and
+
+    Returns:
+        pd.DataFrame: updated records.
+    """
+
+    # Identifying first EPC records for each dwelling
+    first_records = (
+        mcs_epc_data.sort_values("INSPECTION_DATE")
+        .groupby("original_mcs_index")
+        .head(1)
+    )
+
+    # Idenifying new dwellings
+    new_dwellings = first_records.loc[
+        (first_records["TRANSACTION_TYPE"] == "new dwelling")
+        | (
+            first_records["TENURE"]
+            == "Not defined - use in the case of a new dwelling for which the intended tenure in not known. It is no"  # note: typos intentional!
+        )
+        | (first_records["TENURE"] == "unknown")
+        | pd.isnull(first_records["TENURE"])
+    ]
+
+    # Filling in CONSTRUCTION_AGE_BAND for new dwellings
+    print("Before updating CONSTRUCTION_AGE_BAND:")
+    print(mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False))
+    mcs_epc_data.loc[
+        mcs_epc_data["original_mcs_index"].isin(new_dwellings["original_mcs_index"]),
+        "CONSTRUCTION_AGE_BAND",
+    ] = "2007 onwards"
+    print("After updating CONSTRUCTION_AGE_BAND:")
+    print(mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False))
+
+    print("Values of tenure when CONSTRUCTION_AGE_BAND is missing:")
+    print(
+        mcs_epc_data[mcs_epc_data["CONSTRUCTION_AGE_BAND"] == "unknown"][
+            "TENURE"
+        ].value_counts(dropna=False)
+    )
+    print("Values of TRANSACTION_TYPE when CONSTRUCTION_AGE_BAND is missing:")
+    print(
+        mcs_epc_data[mcs_epc_data["CONSTRUCTION_AGE_BAND"] == "unknown"][
+            "TRANSACTION_TYPE"
+        ].value_counts(dropna=False)
+    )
+
+    return mcs_epc_data
+
+
 def remove_properties_with_hp_when_built(
     mcs_epc_data: pd.DataFrame, hp_when_built_threshold: int
 ) -> pd.DataFrame:
@@ -17,7 +73,6 @@ def remove_properties_with_hp_when_built(
     with a HP already installed from a dataframe of "fully joined"
     MCS-EPC data.
 
-    Additionally, set CONSTRUCTION_AGE_BAND for new dwellings.
     New dwellings are identified by considering the TRANSACTION_TYPE
     and TENURE fields of their first EPC certificate.
     For these dwellings, the number of days between the
@@ -54,12 +109,6 @@ def remove_properties_with_hp_when_built(
         | (first_records["TENURE"] == "unknown")
         | (first_records["TENURE"] == np.nan)
     ]
-
-    # Filling in CONSTRUCTION_AGE_BAND for new dwellings
-    mcs_epc_data.loc[
-        mcs_epc_data["original_mcs_index"].isin(new_dwellings["original_mcs_index"]),
-        "CONSTRUCTION_AGE_BAND",
-    ] = "2007 onwards"
 
     new_dwellings["days_between_inspection_and_hp_comission"] = abs(
         new_dwellings["commission_date"] - new_dwellings["INSPECTION_DATE"]
@@ -302,12 +351,21 @@ def dummify_variables(
         "1950-1966": "between_1930_1966",
         "1965-1975": "between_1965_1983",
         "1976-1983": "between_1965_1983",
+        "1983-1991": "between_1983_2007",
+        "1996-2002": "between_1983_2007",
+        "1991-1998": "between_1983_2007",
+        "2003-2007": "between_1983_2007",
         "2007 onwards": "2007 onwards",
         np.nan: "unknown",
     }
 
     mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data["CONSTRUCTION_AGE_BAND"].map(
         age_bands_mapping
+    )
+
+    print(
+        "CONSTRUCTION_AGE_BAND values after mapping:",
+        mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False),
     )
 
     for col in ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]:
@@ -394,6 +452,11 @@ def process_data_before_modelling(
         pd.Dataframe: Suitable MCS-EPC data.
     """
     enhanced_installations_data = mcs_epc_data.copy()
+
+    enhanced_installations_data = updates_construction_age_band(
+        enhanced_installations_data
+    )
+
     enhanced_installations_data = remove_properties_with_hp_when_built(
         enhanced_installations_data, hp_when_built_threshold
     )
