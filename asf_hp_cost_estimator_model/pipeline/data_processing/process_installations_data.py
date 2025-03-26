@@ -355,7 +355,7 @@ def dummify_variables(
         "1996-2002": "between_1983_2007",
         "1991-1998": "between_1983_2007",
         "2003-2007": "between_1983_2007",
-        "2007 onwards": "2007 onwards",
+        "2007 onwards": "2007_onwards",
         np.nan: "unknown",
     }
 
