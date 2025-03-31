@@ -173,7 +173,7 @@ class CostModelHyperparameterTuning(FlowSpec):
         self.param_combinations = random.sample(
             self.param_combinations, min(200, len(self.param_combinations))
         )
-        print(f"We're testing {len(self.param_combinations} random combinations")
+        print(f"We're testing {len(self.param_combinations)} random combinations")
 
         self.next(self.create_chunks_of_params)
 
