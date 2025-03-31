@@ -28,7 +28,7 @@ def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
         .head(1)
     )
 
-    # Idenifying new dwellings
+    # Identifying new dwellings
     new_dwellings = first_records.loc[
         (first_records["TRANSACTION_TYPE"] == "new dwelling")
         | (
