@@ -45,6 +45,9 @@ date_double_weights: "2020-01-01"
 # Model features - numeric and categorical
 numeric_features: ["n_days", "TOTAL_FLOOR_AREA", "NUMBER_HABITABLE_ROOMS"]
 
+features_to_transform_into_categorical:
+  ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]
+
 # since we have dummies, we don't need all of them
 categorical_features: [
     "BUILT_FORM_detached",
