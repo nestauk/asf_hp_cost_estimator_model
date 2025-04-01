@@ -9,16 +9,17 @@ import pandas as pd
 from asf_hp_cost_estimator_model import config
 
 
-def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
+def identify_new_dwellings(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     """
-    Update CONSTRUCTION_AGE_BAND for new dwellings when missing.
+    Identifies new dwellings in MCS-EPC data.
 
     Args:
-        mcs_epc_data (pd.DataFrame):  MCS HP records joined to EPC. Assumed to
+        mcs_epc_data (pd.DataFrame): MCS HP records joined to EPC. Assumed to
         contain INSPECTION_DATE, TRANSACTION_TYPE, TENURE, commission_date and
+        original_mcs_index columns.
 
     Returns:
-        pd.DataFrame: updated records.
+        pd.DataFrame: MCS-EPC data corresponding to new dwellings
     """
 
     # Identifying first EPC records for each dwelling
@@ -35,32 +36,66 @@ def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
             first_records["TENURE"]
             == "Not defined - use in the case of a new dwelling for which the intended tenure in not known. It is no"  # note: typos intentional!
         )
-        | (first_records["TENURE"] == "unknown")
-        | pd.isnull(first_records["TENURE"])
     ]
 
-    # Filling in CONSTRUCTION_AGE_BAND for new dwellings
-    print("Before updating CONSTRUCTION_AGE_BAND:")
+    return new_dwellings
+
+
+def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Update CONSTRUCTION_AGE_BAND for new dwellings when missing.
+
+    Args:
+        mcs_epc_data (pd.DataFrame): MCS HP records joined to EPC. Assumed to
+        contain INSPECTION_DATE, TRANSACTION_TYPE, TENURE, commission_date and
+        original_mcs_index columns.
+
+    Returns:
+        pd.DataFrame: updated records.
+    """
+
+    new_dwellings = identify_new_dwellings(mcs_epc_data=mcs_epc_data)
+
+    print("CONSTRUCTION AGE BAND BEFORE DOING ANYTHING")
     print(mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False))
+
+    mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data[
+        "CONSTRUCTION_AGE_BAND"
+    ].replace("unknown", np.nan)
+
+    # Filling in CONSTRUCTION_AGE_BAND for new dwellings
     mcs_epc_data.loc[
         mcs_epc_data["original_mcs_index"].isin(new_dwellings["original_mcs_index"]),
         "CONSTRUCTION_AGE_BAND",
     ] = "2007 onwards"
-    print("After updating CONSTRUCTION_AGE_BAND:")
+
+    print("After updating CONSTRUCTION_AGE_BAND for new dwellings:")
     print(mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False))
 
-    print("Values of tenure when CONSTRUCTION_AGE_BAND is missing:")
-    print(
-        mcs_epc_data[mcs_epc_data["CONSTRUCTION_AGE_BAND"] == "unknown"][
-            "TENURE"
-        ].value_counts(dropna=False)
+    most_common_construction_age_band = (
+        mcs_epc_data[~pd.isnull(mcs_epc_data["CONSTRUCTION_AGE_BAND"])]
+        .groupby(["original_mcs_index", "CONSTRUCTION_AGE_BAND"])
+        .size()
+        .sort_values(ascending=False)
+        .reset_index()
+        .groupby("original_mcs_index")
+        .head(1)
+        .drop(columns=0)
     )
-    print("Values of TRANSACTION_TYPE when CONSTRUCTION_AGE_BAND is missing:")
-    print(
-        mcs_epc_data[mcs_epc_data["CONSTRUCTION_AGE_BAND"] == "unknown"][
-            "TRANSACTION_TYPE"
-        ].value_counts(dropna=False)
+
+    mcs_epc_data = mcs_epc_data.join(
+        most_common_construction_age_band,
+        how="left",
+        on="original_mcs_index",
+        rsuffix="_2",
     )
+
+    mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data[
+        "CONSTRUCTION_AGE_BAND"
+    ].fillna(mcs_epc_data["CONSTRUCTION_AGE_BAND_2"])
+
+    print("After updating CONSTRUCTION_AGE_BAND with most common value")
+    print(mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False))
 
     return mcs_epc_data
 
@@ -92,23 +127,7 @@ def remove_properties_with_hp_when_built(
         to have been built with a HP.
     """
 
-    # Identifying first EPC records for each dwelling
-    first_records = (
-        mcs_epc_data.sort_values("INSPECTION_DATE")
-        .groupby("original_mcs_index")
-        .head(1)
-    )
-
-    # Idenifying new dwellings
-    new_dwellings = first_records.loc[
-        (first_records["TRANSACTION_TYPE"] == "new dwelling")
-        | (
-            first_records["TENURE"]
-            == "Not defined - use in the case of a new dwelling for which the intended tenure in not known. It is no"  # note: typos intentional!
-        )
-        | (first_records["TENURE"] == "unknown")
-        | (first_records["TENURE"] == np.nan)
-    ]
+    new_dwellings = identify_new_dwellings(mcs_epc_data=mcs_epc_data)
 
     new_dwellings["days_between_inspection_and_hp_comission"] = abs(
         new_dwellings["commission_date"] - new_dwellings["INSPECTION_DATE"]
@@ -391,6 +410,14 @@ def dummify_variables(
     for col in ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]:
         mcs_epc_data[col] = mcs_epc_data[col].str.replace("-", "_")
 
+    # Removing any instances where values are unknown
+    for col in (
+        config["features_to_transform_into_categorical"] + config["numeric_features"]
+    ):
+        mcs_epc_data = mcs_epc_data[
+            (mcs_epc_data[col] != "unknown") & ~pd.isnull(mcs_epc_data[col])
+        ]
+
     if rooms_as_categorical:
         rooms_mapping = {
             1: "1",
@@ -409,23 +436,15 @@ def dummify_variables(
 
         mcs_epc_data = pd.get_dummies(
             mcs_epc_data,
-            columns=[
-                "BUILT_FORM",
-                "PROPERTY_TYPE",
-                "CONSTRUCTION_AGE_BAND",
-                "region_name",
+            columns=config["features_to_transform_into_categorical"]
+            + [
                 "number_of_rooms",
             ],
         )
     else:
         mcs_epc_data = pd.get_dummies(
             mcs_epc_data,
-            columns=[
-                "BUILT_FORM",
-                "PROPERTY_TYPE",
-                "CONSTRUCTION_AGE_BAND",
-                "region_name",
-            ],
+            columns=config["features_to_transform_into_categorical"],
         )
 
     return mcs_epc_data
@@ -483,5 +502,7 @@ def process_data_before_modelling(
     enhanced_installations_data = dummify_variables(
         enhanced_installations_data, rooms_as_categorical
     )
+
+    enhanced_installations_data.reset_index(drop=True, inplace=True)
 
     return enhanced_installations_data
