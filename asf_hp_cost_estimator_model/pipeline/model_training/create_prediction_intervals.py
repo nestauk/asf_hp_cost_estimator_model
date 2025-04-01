@@ -89,7 +89,7 @@ def visualise_prediction_against_perfect_prediction(y: np.array, y_pred: np.arra
         y (np.array): true values
         y_pred (np.array): predicted values
     """
-    plt.scatter(y, y_pred, color="blue", label="Predictions")
+    plt.scatter(y, y_pred, color="blue", label="Predictions", alpha=0.1)
     plt.plot(
         [y.min(), y.max()], [y.min(), y.max()], color="red", label="Perfect Predictions"
     )
