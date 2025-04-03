@@ -440,11 +440,13 @@ def dummify_variables(
             + [
                 "number_of_rooms",
             ],
+            dtype=int,
         )
     else:
         mcs_epc_data = pd.get_dummies(
             mcs_epc_data,
             columns=config["features_to_transform_into_categorical"],
+            dtype=int,
         )
 
     return mcs_epc_data
