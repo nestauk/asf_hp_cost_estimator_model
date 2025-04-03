@@ -12,6 +12,9 @@ from sklearn.experimental import (
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.pipeline import Pipeline
+import pandas as pd
+from sklearn.svm import SVR
+from sklearn.preprocessing import StandardScaler
 
 from asf_hp_cost_estimator_model.pipeline.data_processing.process_installations_data import (
     process_data_before_modelling,
@@ -39,14 +42,16 @@ def set_up_pipeline() -> Pipeline:
     preprocessor = IterativeImputer(random_state=0)
 
     # The regression model trained to predict the cost of an air source heat pump
-    regressor = GradientBoostingRegressor(
-        loss="absolute_error",
-        n_estimators=500,
-        min_samples_leaf=64,
-        random_state=0,
-        max_features="sqrt",
-        verbose=0,
-    )
+    # regressor = GradientBoostingRegressor(
+    #     loss="absolute_error",
+    #     n_estimators=500,
+    #     min_samples_leaf=64,
+    #     random_state=0,
+    #     max_features="sqrt",
+    #     verbose=0,
+    # )
+
+    regressor = SVR()
 
     # The pipeline consists of our imputation and regression model steps
     pipeline = Pipeline(
@@ -59,9 +64,11 @@ def set_up_pipeline() -> Pipeline:
     return pipeline
 
 
-def fit_and_save_model():
+def fit_and_save_model(standardize_X: bool = True):
     """
     Loads data, trains model and saves model as pickle.
+    Args:
+        standardize_X (bool): If True, standardize the numeric features before training
     """
 
     # Load and process data
@@ -78,6 +85,15 @@ def fit_and_save_model():
 
     X = model_data[numeric_features + categorical_features]
     y = model_data[target_feature].values.ravel()
+
+    if standardize_X:
+        scaler = StandardScaler()
+        X_scaled = pd.DataFrame(
+            scaler.fit_transform(X[numeric_features]), columns=numeric_features
+        )
+        X = pd.concat([X_scaled, X[categorical_features]], axis=1)
+        y_scaler = StandardScaler()
+        y = y_scaler.fit_transform(y.reshape(-1, 1)).ravel()
 
     # To codify increased reliability in data after a certain date we double their weightd
     train_weights = np.where(
