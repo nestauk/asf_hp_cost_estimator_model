@@ -56,9 +56,6 @@ def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
 
     new_dwellings = identify_new_dwellings(mcs_epc_data=mcs_epc_data)
 
-    print("CONSTRUCTION AGE BAND BEFORE DOING ANYTHING")
-    print(mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False))
-
     mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data[
         "CONSTRUCTION_AGE_BAND"
     ].replace("unknown", np.nan)
@@ -68,9 +65,6 @@ def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
         mcs_epc_data["original_mcs_index"].isin(new_dwellings["original_mcs_index"]),
         "CONSTRUCTION_AGE_BAND",
     ] = "2007 onwards"
-
-    print("After updating CONSTRUCTION_AGE_BAND for new dwellings:")
-    print(mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False))
 
     most_common_construction_age_band = (
         mcs_epc_data[~pd.isnull(mcs_epc_data["CONSTRUCTION_AGE_BAND"])]
@@ -93,9 +87,6 @@ def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data[
         "CONSTRUCTION_AGE_BAND"
     ].fillna(mcs_epc_data["CONSTRUCTION_AGE_BAND_2"])
-
-    print("After updating CONSTRUCTION_AGE_BAND with most common value")
-    print(mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False))
 
     return mcs_epc_data
 
@@ -380,11 +371,6 @@ def dummify_variables(
 
     mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data["CONSTRUCTION_AGE_BAND"].map(
         age_bands_mapping
-    )
-
-    print(
-        "CONSTRUCTION_AGE_BAND values after mapping:",
-        mcs_epc_data["CONSTRUCTION_AGE_BAND"].value_counts(dropna=False),
     )
 
     for col in ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]:
