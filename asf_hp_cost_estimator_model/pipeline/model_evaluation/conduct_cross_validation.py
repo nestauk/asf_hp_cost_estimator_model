@@ -24,6 +24,8 @@ import os
 from sklearn.metrics import mean_absolute_error, median_absolute_error, r2_score
 import datetime as dt
 from sklearn.pipeline import Pipeline
+from sklearn.svm import SVR
+from sklearn.preprocessing import StandardScaler
 
 # local imports
 from asf_hp_cost_estimator_model import config
@@ -347,6 +349,7 @@ def perform_kfold_cross_validation(
     target_feature: str,
     kfold_splits: int,
     date_double_weights: str = config["date_double_weights"],
+    standardize_X: bool = True,
 ) -> Tuple[List, List, dict]:
     """
     Performs k-fold cross-validation across kfold splits by:
@@ -366,6 +369,7 @@ def perform_kfold_cross_validation(
         target_feature (str): target feature
         kfold_splits (int): number of folds
         date_double_weights(str): date from when we start doubling the weights for instances
+        standardize_X (bool): whether to standardize the numeric features
     Returns:
         Tuple[List, List, dict]: tuple with cross validation results for the constant model,
          the fitted model and for the fitted model but separately for each categorical feature
@@ -389,6 +393,23 @@ def perform_kfold_cross_validation(
         X_train, X_test = X.iloc[train_index], X.iloc[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
+        if standardize_X:
+            scaler_train = StandardScaler()
+            X_train_scaled = pd.DataFrame(
+                scaler_train.fit_transform(X_train[numeric_features]),
+                index=X_train.index,
+                columns=numeric_features,
+            )
+            X_train = pd.concat([X_train_scaled, X_train[categorical_features]], axis=1)
+
+            scaler_test = StandardScaler()
+            X_test_scaled = pd.DataFrame(
+                scaler_test.fit_transform(X_test[numeric_features]),
+                index=X_test.index,
+                columns=numeric_features,
+            )
+            X_test = pd.concat([X_test_scaled, X_test[categorical_features]], axis=1)
+
         if first_fold:
             logging.info(
                 "\nSize of training dataset: "
@@ -400,11 +421,11 @@ def perform_kfold_cross_validation(
             first_fold = False
 
         # Fit the model
-        model = fit_model(model_data, X_train, y_train, date_double_weights)
+        model = fit_model(model_data, X_train_scaled, y_train, date_double_weights)
 
         # Model predictions
-        y_test_pred = model.predict(X_test)
-        y_train_pred = model.predict(X_train)
+        y_test_pred = model.predict(X_test_scaled)
+        y_train_pred = model.predict(X_train_scaled)
 
         # Constant model predictions (based on the mean of the training set)
         # this is used to assess how good the model is compared to a simple model
