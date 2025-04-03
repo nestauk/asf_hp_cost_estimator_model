@@ -20,6 +20,7 @@ dependencies = [
     "scikit-learn>=1.6.1",
     "matplotlib",
     "seaborn",
+    "metaflow",
     "statsmodels"
     ]
 

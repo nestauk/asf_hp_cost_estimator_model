@@ -15,9 +15,9 @@ from asf_hp_cost_estimator_model.getters.data_getters import (
 model_params = {
     "n_estimators": [100, 200, 300],
     "learning_rate": [0.01, 0.05, 0.1],
-    "max_depth": [3, 4, 5],
-    "subsample": [0.7, 0.8, 0.9, 1],
+    "max_depth": [3, 5, 10],
     "min_samples_split": [2, 5, 10],
+    "min_samples_leaf": [50, 100],
 }
 
 # Data params
