@@ -443,8 +443,7 @@ def dummify_variables(
     else:
         mcs_epc_data = pd.get_dummies(
             mcs_epc_data,
-            columns=config["categorical_features_to_dummify"]
-            + ["CURRENT_ENERGY_RATING", "WINDOWS_ENERGY_EFF"],
+            columns=config["categorical_features_to_dummify"],
         )
 
     return mcs_epc_data
