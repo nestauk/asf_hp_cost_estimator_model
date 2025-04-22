@@ -19,7 +19,8 @@ def get_enhanced_installations_data():
 
 
 def get_postcodes_data():
-    """Get dataset of all UK postcodes with easting/northing coordinates,
+    """Get dataset of all UK postcodes with easting/northing coordinates.
+
     top-level region, and country columns. Save postcode and region columns
     as csv to enable lookup.
 
