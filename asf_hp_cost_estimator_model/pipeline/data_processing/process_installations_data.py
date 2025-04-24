@@ -226,20 +226,30 @@ def remove_samples_exclusion_criteria(
             )
         ]
 
-    if "cost_lower_bound" in exclusion_criteria_dict:
+    if "adjusted_cost_lower_bound" in exclusion_criteria_dict:
         filtered_data = filtered_data.loc[
             (
                 filtered_data["adjusted_cost"]
-                >= exclusion_criteria_dict["cost_lower_bound"]
+                >= exclusion_criteria_dict["adjusted_cost_lower_bound"]
             )
+        ]
+
+    if "adjusted_cost_upper_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (
+                filtered_data["adjusted_cost"]
+                <= exclusion_criteria_dict["adjusted_cost_lower_bound"]
+            )
+        ]
+
+    if "cost_lower_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (filtered_data["cost"] >= exclusion_criteria_dict["cost_lower_bound"])
         ]
 
     if "cost_upper_bound" in exclusion_criteria_dict:
         filtered_data = filtered_data.loc[
-            (
-                filtered_data["adjusted_cost"]
-                <= exclusion_criteria_dict["cost_upper_bound"]
-            )
+            (filtered_data["cost"] <= exclusion_criteria_dict["cost_upper_bound"])
         ]
 
     if "NUMBER_HABITABLE_ROOMS_lower_bound" in exclusion_criteria_dict:
@@ -417,6 +427,8 @@ def dummify_variables(
         mcs_epc_data[col] = mcs_epc_data[col].str.replace(" ", "_")
         mcs_epc_data[col] = mcs_epc_data[col].str.replace("-", "_")
 
+    original_feature_data = mcs_epc_data[config["categorical_features_to_dummify"]]
+
     if rooms_as_categorical:
         rooms_mapping = {
             1: "1",
@@ -439,12 +451,16 @@ def dummify_variables(
             + [
                 "number_of_rooms",
             ],
+            dtype=int,
         )
     else:
         mcs_epc_data = pd.get_dummies(
             mcs_epc_data,
             columns=config["categorical_features_to_dummify"],
+            dtype=int,
         )
+
+    mcs_epc_data = pd.concat([original_feature_data, mcs_epc_data], axis=1)
 
     return mcs_epc_data
 
