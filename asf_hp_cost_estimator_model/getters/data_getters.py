@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import os
 from asf_hp_cost_estimator_model import config, PROJECT_DIR
+from asf_hp_cost_estimator_model.getters.getter_utils import get_df_from_csv_url
 
 postcode_path = config["postcode_path"]
 regions_path = config["regions_path"]
@@ -64,3 +65,15 @@ def get_postcodes_data():
     pc_regions["region_name"] = pc_regions["region_name"].fillna(pc_regions["country"])
 
     return pc_regions
+
+
+def get_cpi_data() -> pd.DataFrame:
+    """
+    Get CPI data.
+
+    Returns:
+        pd.DataFrame: CPI data
+    """
+    cpi_05_3_df = get_df_from_csv_url(config["cpi_data"]["cpi_source_url"])
+
+    return cpi_05_3_df

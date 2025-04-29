@@ -32,10 +32,6 @@ def identify_new_dwellings(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     # Identifying new dwellings
     new_dwellings = first_records.loc[
         (first_records["TRANSACTION_TYPE"] == "new dwelling")
-        | (
-            first_records["TENURE"]
-            == "Not defined - use in the case of a new dwelling for which the intended tenure in not known. It is no"  # note: typos intentional!
-        )
     ]
 
     return new_dwellings
@@ -56,25 +52,27 @@ def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
 
     new_dwellings = identify_new_dwellings(mcs_epc_data=mcs_epc_data)
 
-    mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data[
-        "CONSTRUCTION_AGE_BAND"
-    ].replace("unknown", np.nan)
-
     # Filling in CONSTRUCTION_AGE_BAND for new dwellings
     mcs_epc_data.loc[
         mcs_epc_data["original_mcs_index"].isin(new_dwellings["original_mcs_index"]),
         "CONSTRUCTION_AGE_BAND",
     ] = "2007 onwards"
 
+    # Identify construction age band for each dwelling so that if it is missing in some records
+    # it can be filled in with the most common value found
     most_common_construction_age_band = (
-        mcs_epc_data[~pd.isnull(mcs_epc_data["CONSTRUCTION_AGE_BAND"])]
-        .groupby(["original_mcs_index", "CONSTRUCTION_AGE_BAND"])
-        .size()
-        .sort_values(ascending=False)
+        mcs_epc_data[
+            ~pd.isnull(mcs_epc_data["CONSTRUCTION_AGE_BAND"])
+        ]  # remove records with missing age band
+        .groupby(
+            ["original_mcs_index", "CONSTRUCTION_AGE_BAND"]
+        )  # group by installation index and age band
+        .size()  # count number of records for each age band
+        .sort_values(ascending=False)  # sort by count
         .reset_index()
-        .groupby("original_mcs_index")
-        .head(1)
-        .drop(columns=0)
+        .groupby("original_mcs_index")  # group by installation index
+        .head(1)  # get most common age band
+        .drop(columns=0)  # drop count column
     )
 
     mcs_epc_data = mcs_epc_data.join(
@@ -84,6 +82,7 @@ def updates_construction_age_band(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
         rsuffix="_2",
     )
 
+    # Fill in missing CONSTRUCTION_AGE_BAND with most common value
     mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data[
         "CONSTRUCTION_AGE_BAND"
     ].fillna(mcs_epc_data["CONSTRUCTION_AGE_BAND_2"])
@@ -99,9 +98,7 @@ def remove_properties_with_hp_when_built(
     with a HP already installed from a dataframe of "fully joined"
     MCS-EPC data.
 
-    New dwellings are identified by considering the TRANSACTION_TYPE
-    and TENURE fields of their first EPC certificate.
-    For these dwellings, the number of days between the
+    For new dwellings, the number of days between the
     installation date and the date of the first EPC certificate is
     calculated. If this number is below a certain threshold, the
     dwelling is assumed to have been built with a HP and the
@@ -149,8 +146,11 @@ def filter_to_relevant_samples(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     Filter HP installation data to samples that are useful for modelling.
     Samples useful for modelling are:
     - ASHP installations
-    - Cost not NA
-    - INSPECTION_DATE is not null (installation is linked to an EPC)
+    - Cost not missing
+    - original_epc_index is not missing (installation is linked to an EPC)
+    - INSPECTION_DATE is not missing
+    - remove non-domestic installations
+    - Not part of a "cluster" of installations within the same postcode and time interval
 
     Args:
         mcs_epc_data (pd.DataFrame): MCS-EPC records.
@@ -158,12 +158,30 @@ def filter_to_relevant_samples(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Records relevant for modelling.
     """
-    filtered_data = mcs_epc_data.loc[
-        (mcs_epc_data["tech_type"] == "Air Source Heat Pump")
-        & ~mcs_epc_data["INSPECTION_DATE"].isnull()  # has an EPC certificate
-        & ~mcs_epc_data["cost"].isna()
-    ].reset_index(drop=True)
 
+    filtered_data = mcs_epc_data.copy()
+    # Filter to ASHP installations
+
+    key_variables = ["cost", "original_epc_index", "INSPECTION_DATE"]
+    filtered_data = filtered_data.dropna(subset=key_variables, how="any")
+
+    filtered_data = filtered_data.loc[
+        (filtered_data["tech_type"] == "Air Source Heat Pump")
+    ]
+
+    # Filter to samples that are not non-domestic installations
+    filtered_data = filtered_data.loc[
+        ~(
+            filtered_data["installation_type"]
+            .str.lower()
+            .isin(["commercial", "non-domestic"])
+        )
+    ]
+
+    # Filter out samples that are part of a "cluster" of installations
+    filtered_data = filtered_data.loc[~filtered_data["cluster"]]
+
+    filtered_data = filtered_data.reset_index(drop=True)
     return filtered_data
 
 
@@ -172,9 +190,8 @@ def remove_samples_exclusion_criteria(
 ) -> pd.DataFrame:
     """
     - Cost in a sensible range for an ASHP installation
-    - Number of habitable rooms within a certain range
+    - Number of habitable rooms and total floor area within a certain range
     - Only selected property types
-    - Not part of a "cluster" of installations within the same postcode and time interval
 
     Args:
         mcs_epc_data (pd.DataFrame): MCS-EPC records.
@@ -186,10 +203,17 @@ def remove_samples_exclusion_criteria(
 
     filtered_data = mcs_epc_data.copy()
 
+    if "PROPERTY_TYPE_allowed_list" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            filtered_data["PROPERTY_TYPE"].isin(
+                exclusion_criteria_dict["PROPERTY_TYPE_allowed_list"]
+            )
+        ]
+
     if "TOTAL_FLOOR_AREA_lower_bound" in exclusion_criteria_dict:
         filtered_data = filtered_data.loc[
             (
-                mcs_epc_data["TOTAL_FLOOR_AREA"]
+                filtered_data["TOTAL_FLOOR_AREA"]
                 >= exclusion_criteria_dict["TOTAL_FLOOR_AREA_lower_bound"]
             )
         ]
@@ -199,6 +223,22 @@ def remove_samples_exclusion_criteria(
             (
                 filtered_data["TOTAL_FLOOR_AREA"]
                 <= exclusion_criteria_dict["TOTAL_FLOOR_AREA_upper_bound"]
+            )
+        ]
+
+    if "adjusted_cost_lower_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (
+                filtered_data["adjusted_cost"]
+                >= exclusion_criteria_dict["adjusted_cost_lower_bound"]
+            )
+        ]
+
+    if "adjusted_cost_upper_bound" in exclusion_criteria_dict:
+        filtered_data = filtered_data.loc[
+            (
+                filtered_data["adjusted_cost"]
+                <= exclusion_criteria_dict["adjusted_cost_lower_bound"]
             )
         ]
 
@@ -227,15 +267,6 @@ def remove_samples_exclusion_criteria(
                 <= exclusion_criteria_dict["NUMBER_HABITABLE_ROOMS_upper_bound"]
             )
         ]
-
-    if "PROPERTY_TYPE_allowed_list" in exclusion_criteria_dict:
-        filtered_data = filtered_data.loc[
-            filtered_data["PROPERTY_TYPE"].isin(
-                exclusion_criteria_dict["PROPERTY_TYPE_allowed_list"]
-            )
-        ]
-
-    filtered_data = filtered_data.loc[~filtered_data["cluster"]]
 
     filtered_data = filtered_data.reset_index(drop=True)
 
@@ -353,6 +384,13 @@ def dummify_variables(
         pd.Dataframe: Dataframe with columns dummified.
     """
 
+    # Remove records with missing values in key features before creating dummies
+    key_variables = (
+        config["categorical_features_to_dummify"] + config["numeric_features"]
+    )
+    mcs_epc_data = mcs_epc_data.dropna(subset=key_variables, how="any")
+
+    # renaming and aggregating age bands
     age_bands_mapping = {
         "England and Wales: before 1900": "pre_1929",
         "Scotland: before 1919": "pre_1929",
@@ -366,43 +404,30 @@ def dummify_variables(
         "1991-1998": "between_1983_2007",
         "2003-2007": "between_1983_2007",
         "2007 onwards": "2007_onwards",
-        np.nan: "unknown",
     }
-
     mcs_epc_data["CONSTRUCTION_AGE_BAND"] = mcs_epc_data["CONSTRUCTION_AGE_BAND"].map(
         age_bands_mapping
     )
 
-    for col in ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]:
-        mcs_epc_data[col] = mcs_epc_data[col].replace(np.nan, "unknown")
-
-    mcs_epc_data["region_name"] = (
-        mcs_epc_data["region_name"].str.lower().str.replace(" ", "_")
-    )
-    mcs_epc_data["BUILT_FORM"] = (
-        mcs_epc_data["BUILT_FORM"].str.lower().str.replace(" ", "_")
-    )
+    # aggregating BUILT forms ("End-Terrace" with "Enclosed End-Terrace" and "Mid-Terrace" with "Enclosed Mid-Terrace")
     mcs_epc_data["BUILT_FORM"] = mcs_epc_data["BUILT_FORM"].apply(
         lambda x: x.replace(
             x,
             (
-                "end-terrace"
-                if "end-terrace" in x
-                else x.replace(x, "mid-terrace" if "mid-terrace" in x else x)
+                "End-Terrace"
+                if "End-Terrace" in x
+                else x.replace(x, "Mid-Terrace" if "Mid-Terrace" in x else x)
             ),
         )
     )
 
-    for col in ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]:
+    # replacing "-" and " " with "_" in feature values
+    for col in config["categorical_features_to_dummify"]:
+        mcs_epc_data[col] = mcs_epc_data[col].str.lower()
+        mcs_epc_data[col] = mcs_epc_data[col].str.replace(" ", "_")
         mcs_epc_data[col] = mcs_epc_data[col].str.replace("-", "_")
 
-    # Removing any instances where values are unknown
-    for col in (
-        config["features_to_transform_into_categorical"] + config["numeric_features"]
-    ):
-        mcs_epc_data = mcs_epc_data[
-            (mcs_epc_data[col] != "unknown") & ~pd.isnull(mcs_epc_data[col])
-        ]
+    original_feature_data = mcs_epc_data[config["categorical_features_to_dummify"]]
 
     if rooms_as_categorical:
         rooms_mapping = {
@@ -422,23 +447,74 @@ def dummify_variables(
 
         mcs_epc_data = pd.get_dummies(
             mcs_epc_data,
-            columns=config["features_to_transform_into_categorical"]
+            columns=config["categorical_features_to_dummify"]
             + [
                 "number_of_rooms",
             ],
+            dtype=int,
         )
     else:
         mcs_epc_data = pd.get_dummies(
             mcs_epc_data,
-            columns=config["features_to_transform_into_categorical"],
+            columns=config["categorical_features_to_dummify"],
+            dtype=int,
         )
 
+    mcs_epc_data = pd.concat([original_feature_data, mcs_epc_data], axis=1)
+
     return mcs_epc_data
+
+
+def _generate_series_year_quarters(commission_date_series: pd.Series) -> pd.Series:
+    """
+    Generate a series of years and quarters from a series of dates.
+
+    Args
+        commission_date_series (pd.Series): commission dates with year, month, and day
+
+    Returns
+        pd.Series: series of year and quarter values in the form `YYYY QN`
+    """
+    return (
+        commission_date_series.pipe(pd.to_datetime).dt.year.astype(str)
+        + " Q"
+        + commission_date_series.pipe(pd.to_datetime).dt.quarter.astype(str)
+    )
+
+
+def generate_df_adjusted_costs(
+    mcs_epc_df: pd.DataFrame, cpi_quarters_df: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Join CPI (consumer price index) dataframe containing quarterly adjustment factors to MCS-EPC dataframe and
+    calculate adjusted installation costs for each row.
+
+    Args
+        mcs_epc_df (pd.DataFrame): joined MCS-EPC dataframe
+        cpi_quarters_df (pd.DataFrame): quarterly CPI data with adjustment factors for each quarter
+
+    Returns
+        pd.DataFrame: MCS-EPC dataframe with CPI values, adjustment factors, and adjusted costs
+    """
+    mcs_epc_df["year_quarter"] = _generate_series_year_quarters(
+        commission_date_series=mcs_epc_df["commission_date"]
+    )
+
+    mcs_epc_inf = mcs_epc_df.merge(
+        cpi_quarters_df, how="left", left_on="year_quarter", right_on="Title"
+    )
+
+    mcs_epc_inf["adjusted_cost"] = (
+        mcs_epc_inf["cost"] * mcs_epc_inf["adjustment_factor"]
+    )
+
+    return mcs_epc_inf
 
 
 def process_data_before_modelling(
     mcs_epc_data: pd.DataFrame,
     postcodes_data: pd.DataFrame,
+    cpi_quarterly_df: pd.DataFrame,
     hp_when_built_threshold: int = config["hp_when_built_threshold"],
     exclusion_criteria_dict: dict = config["exclusion_criteria"],
     min_date: dict = config["min_date"],
@@ -461,6 +537,10 @@ def process_data_before_modelling(
     """
     enhanced_installations_data = mcs_epc_data.copy()
 
+    enhanced_installations_data = enhanced_installations_data.replace(
+        "(?i)unknown", np.nan, regex=True
+    )
+
     enhanced_installations_data = updates_construction_age_band(
         enhanced_installations_data
     )
@@ -471,6 +551,11 @@ def process_data_before_modelling(
 
     enhanced_installations_data = filter_to_relevant_samples(
         enhanced_installations_data
+    )
+
+    # costs are adjusted before exlcusion criteria (which includes a threshold for cost) are applied
+    enhanced_installations_data = generate_df_adjusted_costs(
+        mcs_epc_df=enhanced_installations_data, cpi_quarters_df=cpi_quarterly_df
     )
 
     enhanced_installations_data = remove_samples_exclusion_criteria(
