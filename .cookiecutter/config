@@ -13,7 +13,7 @@ VENV_PATH=.venv
 ENV_CREATE=conda env create -n ${REPO_NAME} -f environment.yaml
 ENV_ACTIVATE=conda shell.bash activate ${REPO_NAME}
 ENV_DEACTIVATE=conda deactivate
-ENV_REMOVE=conda env remove -n ${REPO_NAME} -y
+ENV_REMOVE=conda env remove -n ${REPO_NAME}
 ENV_UPDATE=conda env update -n ${REPO_NAME} -f environment.yaml
-ENV_INSTALL_EXTRAS=conda install pip -y
+ENV_INSTALL_EXTRAS=conda install pip
 
