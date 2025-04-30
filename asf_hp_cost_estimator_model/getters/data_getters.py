@@ -6,8 +6,8 @@ import os
 from asf_hp_cost_estimator_model import config, PROJECT_DIR
 from asf_hp_cost_estimator_model.getters.getter_utils import get_df_from_csv_url
 
-postcode_path = config["postcode_path"]
-regions_path = config["regions_path"]
+postcode_path = config["postcode_path"]  # TODO: DELETE AFTER CODE REVIEW
+regions_path = config["regions_path"]  # TODO: DELETE AFTER CODE REVIEW
 
 
 def get_enhanced_installations_data():
@@ -19,7 +19,7 @@ def get_enhanced_installations_data():
     return mcs_enhanced_with_epc
 
 
-def get_postcodes_data():
+def get_postcodes_data():  # TODO: DELETE AFTER CODE REVIEW
     """Get dataset of all UK postcodes with easting/northing coordinates,
     top-level region, and country columns. Save postcode and region columns
     as csv to enable lookup.
@@ -77,3 +77,49 @@ def get_cpi_data() -> pd.DataFrame:
     cpi_05_3_df = get_df_from_csv_url(config["cpi_data"]["cpi_source_url"])
 
     return cpi_05_3_df
+
+
+def get_postcode_to_lad_data(
+    postcode_to_lad_data_file_name: str, s3_path: str = config["location_data_s3_path"]
+) -> pd.DataFrame:
+    """
+    Gets location data with postcode matched to LAD and processes the postcode column.
+
+    Args:
+        s3_path (str, optional): Path to the location data. Defaults to config["location_data_s3_path"].
+        postcode_to_lad_data_file_name (str, optional): File name of postcode to LAD data. Defaults to config["postcode_to_lad_data_file_name"].
+
+    Returns:
+        pd.DataFrame: postcode to LAD data
+    """
+    postcode_to_lad_data = pd.read_csv(
+        os.path.join(s3_path, postcode_to_lad_data_file_name), encoding="latin-1"
+    )
+    postcode_to_lad_data["postcode"] = postcode_to_lad_data["pcds"].str.replace(" ", "")
+
+    return postcode_to_lad_data
+
+
+def get_lad_to_region_data(
+    lad_to_region_file_name: str, s3_path: str = config["location_data_s3_path"]
+) -> pd.DataFrame:
+    """
+    Gets location data with LAD matched to region and renames the columns.
+
+    Args:
+        s3_path (str, optional): Path to the location data. Defaults to config["location_data_s3_path"].
+        lad_to_region_file_name (str, optional): File name of LAD to region data. Defaults to config["lad_to_region_file_name"].
+
+    Returns:
+        pd.DataFrame: LAD to region data
+    """
+    if lad_to_region_file_name.endswith(".csv"):
+        lad_to_region_data = pd.read_csv(os.path.join(s3_path, lad_to_region_file_name))
+    else:
+        lad_to_region_data = pd.read_excel(
+            os.path.join(s3_path, lad_to_region_file_name)
+        )
+
+    lad_to_region_data.columns = ["ladcd", "ladnm", "rgncd", "rgnnm", "FID"]
+
+    return lad_to_region_data
