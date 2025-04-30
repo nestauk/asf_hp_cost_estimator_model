@@ -44,7 +44,7 @@ def join_location_dfs_on_lad(
     return postcode_to_region
 
 
-def get_location_data() -> pd.DataFrame:
+def get_postcodes_data() -> pd.DataFrame:
     """
     Processes location data to match postcode to region name:
         - first uses census 2021 data to create postcode to region mapping
