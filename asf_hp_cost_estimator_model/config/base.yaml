@@ -32,6 +32,10 @@ postcode_to_lad_census_2011_filename: "PCD_OA_LSOA_MSOA_LAD_NOV22_UK_LU.csv"
 lad_to_region_census_2011_filename: "Local_Authority_District_to_Region_(April_2021)_Lookup_in_EN.xlsx"
 
 ### MCS EPC DATA ###
+
+# MCS-EPC data up to Q3 2024 (date is the date of processing)
+mcs_epc_filename_date: "250310"
+
 # Fields in the MCS-EPC data that we're importing
 relevant_mcs_epc_fields:
   [

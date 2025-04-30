@@ -1,4 +1,4 @@
-"""Data getters for MCS-EPC data and postcode/location data."""
+"""Data getters for MCS-EPC data, postcode/location data and CPI."""
 
 import pandas as pd
 import numpy as np
@@ -10,10 +10,23 @@ postcode_path = config["postcode_path"]  # TODO: DELETE AFTER CODE REVIEW
 regions_path = config["regions_path"]  # TODO: DELETE AFTER CODE REVIEW
 
 
-def get_enhanced_installations_data():
+def get_enhanced_installations_data(
+    date: str = config["mcs_epc_filename_date"],
+    usecols: list = config["relevant_mcs_epc_fields"],
+) -> pd.DataFrame:
+    """
+    Get MCS-EPC data.
+
+    Args:
+        date (str, optional): processing date reference, YYMMDD. Defaults to config["mcs_epc_filename_date"].
+        usecols (list, optional): columns to import. Defaults to config["relevant_mcs_epc_fields"].
+
+    Returns:
+        pd.DataFrame: MCS-EPC data
+    """
     mcs_enhanced_with_epc = pd.read_csv(
-        "s3://asf-core-data/outputs/MCS/mcs_installations_epc_full_250310.csv",
-        usecols=config["relevant_mcs_epc_fields"],
+        f"s3://asf-core-data/outputs/MCS/mcs_installations_epc_full_{date}.csv",
+        usecols=usecols,
         parse_dates=["INSPECTION_DATE", "commission_date"],
     )
     return mcs_enhanced_with_epc
@@ -69,7 +82,7 @@ def get_postcodes_data():  # TODO: DELETE AFTER CODE REVIEW
 
 def get_cpi_data() -> pd.DataFrame:
     """
-    Get CPI data.
+    Get the Consumer Price Index (CPI) data from the source URL.
 
     Returns:
         pd.DataFrame: CPI data
@@ -86,9 +99,8 @@ def get_postcode_to_lad_data(
     Gets location data with postcode matched to LAD and processes the postcode column.
 
     Args:
+        postcode_to_lad_data_file_name (str, optional): File name of postcode to LAD data.
         s3_path (str, optional): Path to the location data. Defaults to config["location_data_s3_path"].
-        postcode_to_lad_data_file_name (str, optional): File name of postcode to LAD data. Defaults to config["postcode_to_lad_data_file_name"].
-
     Returns:
         pd.DataFrame: postcode to LAD data
     """
@@ -107,9 +119,8 @@ def get_lad_to_region_data(
     Gets location data with LAD matched to region and renames the columns.
 
     Args:
+        lad_to_region_file_name (str, optional): File name of LAD to region data.
         s3_path (str, optional): Path to the location data. Defaults to config["location_data_s3_path"].
-        lad_to_region_file_name (str, optional): File name of LAD to region data. Defaults to config["lad_to_region_file_name"].
-
     Returns:
         pd.DataFrame: LAD to region data
     """
