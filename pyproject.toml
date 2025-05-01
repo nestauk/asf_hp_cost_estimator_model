@@ -21,7 +21,8 @@ dependencies = [
     "matplotlib",
     "seaborn",
     "metaflow",
-    "statsmodels"
+    "statsmodels",
+    "boto3",
     ]
 
 [project.urls]
