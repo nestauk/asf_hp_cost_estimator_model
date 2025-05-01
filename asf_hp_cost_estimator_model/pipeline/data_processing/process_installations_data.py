@@ -252,6 +252,16 @@ def remove_samples_exclusion_criteria(
             (filtered_data["cost"] <= exclusion_criteria_dict["cost_upper_bound"])
         ]
 
+    if (
+        ("ajusted_cost_upper_bound" not in exclusion_criteria_dict)
+        and ("cost_upper_bound" not in exclusion_criteria_dict)
+        and ("adjusted_cost_lower_bound" not in exclusion_criteria_dict)
+        and ("cost_lower_bound" not in exclusion_criteria_dict)
+    ):
+        filtered_data = remove_cost_outliers_per_group(
+            filtered_data, target_feature=config["target_feature"]
+        )
+
     if "NUMBER_HABITABLE_ROOMS_lower_bound" in exclusion_criteria_dict:
         filtered_data = filtered_data.loc[
             (
@@ -509,6 +519,71 @@ def generate_df_adjusted_costs(
     )
 
     return mcs_epc_inf
+
+
+def remove_cost_outliers_per_group(
+    data: pd.DataFrame, target_feature: str = config["target_feature"]
+):
+    """
+    Remove outliers from cost data for each group, where a group is a combination of
+    PROPERTY_TYPE, CONSTRUCTION_AGE_BAND, and NUMBER_HABITABLE_ROOMS.
+
+    Args:
+        data (pd.DataFrame): installations data
+        target_feature (str, optional): cost feature to use as target. Defaults to config["target_feature"].
+    """
+    data["NUMBER_HABITABLE_ROOMS"] = data["NUMBER_HABITABLE_ROOMS"].apply(
+        lambda x: 9 if x > 9 else x
+    )
+    combinations = (
+        data.groupby(
+            ["PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "NUMBER_HABITABLE_ROOMS"]
+        )[["original_mcs_index"]]
+        .nunique()
+        .sort_values("original_mcs_index")
+        .reset_index()
+        .rename(columns={"original_mcs_index": "number_of_installations"})
+    )
+
+    combinations["combination"] = [
+        "combination_" + str(i) for i in range(1, len(combinations) + 1)
+    ]
+
+    data = data.merge(
+        combinations[
+            [
+                "PROPERTY_TYPE",
+                "CONSTRUCTION_AGE_BAND",
+                "NUMBER_HABITABLE_ROOMS",
+                "combination",
+            ]
+        ],
+        on=["PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "NUMBER_HABITABLE_ROOMS"],
+        how="left",
+    )
+
+    cleaned_df = pd.DataFrame()
+
+    for comb in data["combination"].unique():
+        subset = data[data["combination"] == comb]
+
+        Q1 = subset[target_feature].quantile(0.25)
+        Q3 = subset[target_feature].quantile(0.75)
+        IQR = Q3 - Q1
+
+        # Define bounds
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+
+        # Filter out outliers
+        subset_cleaned = subset[
+            (subset[target_feature] >= lower_bound)
+            & (subset[target_feature] <= upper_bound)
+        ]
+
+        cleaned_df = pd.concat([cleaned_df, subset_cleaned], ignore_index=True)
+
+    return cleaned_df
 
 
 def process_data_before_modelling(
