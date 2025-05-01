@@ -10,6 +10,7 @@ model_evaluation_folder: "outputs/model_evaluation/"
 cpi_data:
   cpi_column_header: "CPI INDEX 05.3 : Household appliances, fitting and repairs 2015=100"
   cpi_source_url: "https://www.ons.gov.uk/generator?format=csv&uri=/economy/inflationandpriceindices/timeseries/d7ck/mm23"
+  cpi_reference_year: 2024
 
 ### LOCATION DATA ###
 # Location data links available below, data is stored in S3
@@ -57,28 +58,30 @@ relevant_mcs_epc_fields:
     "INSPECTION_DATE",
   ]
 
-# Exlcusion criteria
+### PROCESSING AND MODELLING CHOICES ###
+
+# Threshold for the number of days between house built (info from EPC) and HP installed (info from MCS)
+#for us to assume that HP was installed at the time of house build
 hp_when_built_threshold: 365
+
+# Exclusion criteria
 exclusion_criteria:
-  cost_lower_bound: 3500
-  cost_upper_bound: 25000
   NUMBER_HABITABLE_ROOMS_lower_bound: 2
-  NUMBER_HABITABLE_ROOMS_upper_bound: 8
   TOTAL_FLOOR_AREA_lower_bound: 20
   TOTAL_FLOOR_AREA_upper_bound: 500
   PROPERTY_TYPE_allowed_list: ["House", "Bungalow"]
-min_date: "2007-01-01"
 
-# Date from when we double the cost model weights
-date_double_weights: "2020-01-01"
+# Start date for MCS-EPC data
+min_date: "2007-01-01"
 
 # Model features - numeric and categorical
 numeric_features: ["n_days", "TOTAL_FLOOR_AREA", "NUMBER_HABITABLE_ROOMS"]
 
+# Categorical features to dummify
 categorical_features_to_dummify:
   ["BUILT_FORM", "PROPERTY_TYPE", "CONSTRUCTION_AGE_BAND", "region_name"]
 
-# since we have dummies, we don't need all of them
+# Dummy features = since we have dummies, we don't need all of them (hence why some are commented out)
 categorical_features: [
     "BUILT_FORM_detached",
     #'BUILT_FORM_end_terrace',
@@ -112,3 +115,11 @@ kfold_splits: 5
 
 # Date for comparing model performance in latest predictions
 date_for_latest_predictions: "2023-01-01"
+
+# Model hyperparameters
+n_estimators: 450
+min_samples_leaf: 100
+min_samples_split: 10
+random_state: 42
+learning_rate: 0.2
+max_depth: 5
