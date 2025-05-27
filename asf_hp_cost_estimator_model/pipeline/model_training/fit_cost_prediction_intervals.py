@@ -27,7 +27,7 @@ from asf_hp_cost_estimator_model.getters.data_getters import get_cpi_data
 
 def set_up_pipeline(quantile: int) -> Pipeline:
     """
-    Set up a pipeline to training a model to estimate the cost of an air source heat pump.
+    Set up a pipeline to train a model to estimate the cost of an air source heat pump.
 
     Returns:
         Pipeline: pipeline consisting of an imputation step and a regression model step.
