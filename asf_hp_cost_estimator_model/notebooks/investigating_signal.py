@@ -132,7 +132,7 @@ categorical_features_full = categorical_features + [
 ]
 for var in categorical_features_full:
 
-    aux = model_data.loc[model_data[var]]
+    aux = model_data.loc[model_data[var] == 1]
     median = aux["cost"].median().round()
     plt.figure(figsize=(10, 6))
     plt.hist(
@@ -168,7 +168,7 @@ categorical_features_full = categorical_features + [
 ]
 for var in categorical_features_full:
 
-    aux = model_data.loc[model_data[var]]
+    aux = model_data.loc[model_data[var] == 1]
     median = aux["adjusted_cost"].median().round()
     plt.figure(figsize=(10, 6))
     plt.hist(
