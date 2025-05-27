@@ -1,5 +1,10 @@
 """
-Pipeline for fitting a model to estimate the cost of an air source heat pump.
+Pipeline for fitting models to to estimate the cost interval for air source heat pumps,
+using quantile regression through Gradient Boosting Regressor with quantile loss.
+It defaults to producing a 80% confidence interval by fitting models using the 10th and 90th percentiles.
+
+This script can be run from the command line, allowing for custom quantiles to be specified:
+    python fit_cost_prediction_intervals.py --lower_quantile 0.1 --upper_quantile 0.9
 """
 
 import boto3
@@ -25,6 +30,31 @@ from asf_hp_cost_estimator_model.pipeline.data_processing.process_cpi import (
 from asf_hp_cost_estimator_model.getters.data_getters import get_cpi_data
 
 
+def argparse_setup():
+    """
+    Sets up the command line argument parser to allow for quantile specification
+    used for estimating a cost prediction interval for an air source heat pump.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Fit a model to estimate the cost of an air source heat pump."
+    )
+    parser.add_argument(
+        "--lower_quantile",
+        type=float,
+        default=0.1,
+        help="Lower quantile for cost estimation.",
+    )
+    parser.add_argument(
+        "--upper_quantile",
+        type=float,
+        default=0.9,
+        help="Upper quantile for cost estimation.",
+    )
+    return parser.parse_args()
+
+
 def set_up_pipeline(quantile: float) -> Pipeline:
     """
     Set up a pipeline to train a model to estimate the cost of an air source heat pump.
@@ -47,7 +77,7 @@ def set_up_pipeline(quantile: float) -> Pipeline:
     return regressor
 
 
-def fit_and_save_model():
+def fit_and_save_model(lower_quantile: float = 0.1, upper_quantile: float = 0.9):
     """
     Loads data, trains model and saves model as pickle.
     """
@@ -77,30 +107,36 @@ def fit_and_save_model():
     y = model_data[target_feature].values.ravel()
 
     # Train models
-    regressor_10p = set_up_pipeline(0.1)
-    regressor_10p.fit(X, y)
+    regressor_lower_q = set_up_pipeline(lower_quantile)
+    regressor_lower_q.fit(X, y)
 
-    regressor_90p = set_up_pipeline(0.9)
-    regressor_90p.fit(X, y)
+    regressor_upper_q = set_up_pipeline(upper_quantile)
+    regressor_upper_q.fit(X, y)
 
     # Save models
     today_date = datetime.today().strftime("%Y%m%d")
 
     s3_resource = boto3.resource("s3")
-    regressor_10p = pickle.dumps(regressor_10p)
-    regressor_90p = pickle.dumps(regressor_90p)
+    regressor_lower_q = pickle.dumps(regressor_lower_q)
+    regressor_upper_q = pickle.dumps(regressor_upper_q)
 
     s3_resource.Object(
-        "asf-hp-cost-estimator-model", f"outputs/model/{today_date}/regressor10p.pkl"
-    ).put(Body=regressor_10p)
+        "asf-hp-cost-estimator-model",
+        f"outputs/model/{today_date}/regressor_lower_q{lower_quantile}.pkl",
+    ).put(Body=regressor_lower_q)
     s3_resource.Object(
-        "asf-hp-cost-estimator-model", f"outputs/model/{today_date}/regressor90p.pkl"
-    ).put(Body=regressor_90p)
+        "asf-hp-cost-estimator-model",
+        f"outputs/model/{today_date}/regressor_upper_q{upper_quantile}.pkl",
+    ).put(Body=regressor_upper_q)
 
     logging.info(
-        f"Model trained and saved to:\n s3://asf-hp-cost-estimator-model/outputs/model/{today_date}"
+        f"Models trained and saved to:\n s3://asf-hp-cost-estimator-model/outputs/model/{today_date}"
     )
 
 
 if __name__ == "__main__":
-    fit_and_save_model()
+    args = argparse_setup()
+    lower_quantile = args.lower_quantile
+    upper_quantile = args.upper_quantile
+
+    fit_and_save_model(lower_quantile=lower_quantile, upper_quantile=upper_quantile)
