@@ -25,12 +25,12 @@ from asf_hp_cost_estimator_model.pipeline.data_processing.process_cpi import (
 from asf_hp_cost_estimator_model.getters.data_getters import get_cpi_data
 
 
-def set_up_pipeline(quantile: int) -> Pipeline:
+def set_up_pipeline(quantile: float) -> Pipeline:
     """
     Set up a pipeline to train a model to estimate the cost of an air source heat pump.
 
     Returns:
-        Pipeline: pipeline consisting of an imputation step and a regression model step.
+        quantile (float): The quantile to be used by GradientBoostingRegressor.
     """
 
     regressor = GradientBoostingRegressor(
