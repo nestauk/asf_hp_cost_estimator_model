@@ -93,19 +93,19 @@ def get_cpi_data() -> pd.DataFrame:
 
 
 def get_postcode_to_lad_data(
-    postcode_to_lad_data_file_name: str, s3_path: str = config["location_data_s3_path"]
+    postcode_to_lad_data_file_name: str, s3_dir: str = config["location_data_s3_dir"]
 ) -> pd.DataFrame:
     """
     Gets location data with postcode matched to LAD and processes the postcode column.
 
     Args:
         postcode_to_lad_data_file_name (str, optional): File name of postcode to LAD data.
-        s3_path (str, optional): Path to the location data. Defaults to config["location_data_s3_path"].
+        s3_dir (str, optional): Path to the location data directory. Defaults to config["location_data_s3_dir"].
     Returns:
         pd.DataFrame: postcode to LAD data
     """
     postcode_to_lad_data = pd.read_csv(
-        os.path.join(s3_path, postcode_to_lad_data_file_name), encoding="latin-1"
+        os.path.join(s3_dir, postcode_to_lad_data_file_name), encoding="latin-1"
     )
     postcode_to_lad_data["postcode"] = postcode_to_lad_data["pcds"].str.replace(" ", "")
 
@@ -113,22 +113,22 @@ def get_postcode_to_lad_data(
 
 
 def get_lad_to_region_data(
-    lad_to_region_file_name: str, s3_path: str = config["location_data_s3_path"]
+    lad_to_region_file_name: str, s3_dir: str = config["location_data_s3_dir"]
 ) -> pd.DataFrame:
     """
     Gets location data with LAD matched to region and renames the columns.
 
     Args:
         lad_to_region_file_name (str, optional): File name of LAD to region data.
-        s3_path (str, optional): Path to the location data. Defaults to config["location_data_s3_path"].
+        s3_dir (str, optional): Path to the location data directory. Defaults to config["location_data_s3_dir"].
     Returns:
         pd.DataFrame: LAD to region data
     """
     if lad_to_region_file_name.endswith(".csv"):
-        lad_to_region_data = pd.read_csv(os.path.join(s3_path, lad_to_region_file_name))
+        lad_to_region_data = pd.read_csv(os.path.join(s3_dir, lad_to_region_file_name))
     else:
         lad_to_region_data = pd.read_excel(
-            os.path.join(s3_path, lad_to_region_file_name)
+            os.path.join(s3_dir, lad_to_region_file_name)
         )
 
     lad_to_region_data.columns = ["ladcd", "ladnm", "rgncd", "rgnnm", "FID"]

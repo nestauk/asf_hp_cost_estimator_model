@@ -12,8 +12,8 @@ cpi_data:
   cpi_source_url: "https://www.ons.gov.uk/generator?format=csv&uri=/economy/inflationandpriceindices/timeseries/d7ck/mm23"
 
 ### LOCATION DATA ###
-# Location data links available below, data is stored in S3
-location_data_s3_path: "s3://asf-hp-cost-estimator-model/inputs/location_data/"
+# Location data source links available a few lines down; downloaded data is stored in S3 as per line below
+location_data_s3_dir: "s3://asf-hp-cost-estimator-model/inputs/location_data/"
 
 # Postcode to OA (2021) to LSOA to MSOA to LAD (November 2024) Best Fit Lookup in the UK
 # Link: https://open-geography-portalx-ons.hub.arcgis.com/datasets/068ee476727d47a3a7a0d976d4343c59/about
