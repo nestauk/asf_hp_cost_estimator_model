@@ -1,7 +1,4 @@
 # Paths
-postcode_path: "inputs/postcodes/" # TODO; delete after code review
-regions_path: "inputs/regions.csv" # TODO; delete after code review
-postcode_regions_path: "outputs/postcode_regions.csv" # TODO; delete after code review
 staging_folder: "outputs/models/staging/"
 model_pickle_local_path: "outputs/models/staging/model.pickle"
 model_evaluation_folder: "outputs/model_evaluation/"
