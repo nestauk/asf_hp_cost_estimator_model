@@ -184,6 +184,8 @@ class CostModelHyperparameterTuning(FlowSpec):
         """
         from asf_hp_cost_estimator_model.getters.data_getters import (
             get_enhanced_installations_data,
+        )
+        from asf_hp_cost_estimator_model.pipeline.data_processing.process_location_data import (
             get_postcodes_data,
         )
 
