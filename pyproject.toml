@@ -23,6 +23,9 @@ dependencies = [
     "metaflow",
     "statsmodels",
     "boto3",
+    "xgboost",
+    "lightgbm",
+    "catboost",
     ]
 
 [project.urls]
