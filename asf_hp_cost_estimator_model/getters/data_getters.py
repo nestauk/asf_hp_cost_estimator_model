@@ -6,9 +6,6 @@ import os
 from asf_hp_cost_estimator_model import config, PROJECT_DIR
 from asf_hp_cost_estimator_model.getters.getter_utils import get_df_from_csv_url
 
-postcode_path = config["postcode_path"]  # TODO: DELETE AFTER CODE REVIEW
-regions_path = config["regions_path"]  # TODO: DELETE AFTER CODE REVIEW
-
 
 def get_enhanced_installations_data(
     date: str = config["mcs_epc_filename_date"],
