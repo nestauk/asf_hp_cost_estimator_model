@@ -1,6 +1,8 @@
 # %% [markdown]
-# # Testing different models and tuning hyperparameters
+# # Investigating if there's a strong enough signal in the data
 #
+# If cost is noisy or there's not enough signal, we might not be able to get a good estimate of the cost.
+
 # %%
 import pandas as pd
 import numpy as np
@@ -52,7 +54,8 @@ target_feature = "cost"
 # %%
 if target_feature == "cost":
     exclusion_criteria_dict = {
-        # "cost_lower_bound": 3500,
+        # just setting a negative lower bound to not exclude any data
+        "cost_lower_bound": -100,  # 3500,
         # "cost_upper_bound": 25000,
         "NUMBER_HABITABLE_ROOMS_lower_bound": 2,
         # "NUMBER_HABITABLE_ROOMS_upper_bound": 8,
@@ -63,7 +66,8 @@ if target_feature == "cost":
 
 else:  # adjusted_cost
     exclusion_criteria_dict = {
-        # "cost_lower_bound": 3500,
+        # just setting a negative lower bound to not exclude any data
+        "cost_lower_bound": -100,  # 3500,
         # "cost_upper_bound": 25000,
         "NUMBER_HABITABLE_ROOMS_lower_bound": 2,
         # "NUMBER_HABITABLE_ROOMS_upper_bound": 8,
@@ -71,6 +75,9 @@ else:  # adjusted_cost
         "TOTAL_FLOOR_AREA_upper_bound": 500,
         "PROPERTY_TYPE_allowed_list": ["House", "Bungalow"],
     }
+
+# %%
+
 
 # %%
 model_data = process_data_before_modelling(
@@ -96,8 +103,13 @@ len(model_data[(model_data["cost"] >= 3500) & (model_data["cost"] <= 25000)])
 model_data["NUMBER_HABITABLE_ROOMS"].value_counts()
 
 # %%
+len(model_data[model_data["NUMBER_HABITABLE_ROOMS"] >= 8]), len(
+    model_data[model_data["NUMBER_HABITABLE_ROOMS"] >= 8]
+) / len(model_data) * 100
+
+# %%
 model_data["NUMBER_HABITABLE_ROOMS"] = model_data["NUMBER_HABITABLE_ROOMS"].apply(
-    lambda x: 9 if x > 9 else x
+    lambda x: 8 if x > 8 else x
 )
 
 # %%
@@ -131,20 +143,22 @@ from sklearn.ensemble import IsolationForest
 
 
 def remove_outliers_within_archetypes(
-    df, archetype_col, feature_cols, contamination=0.1
+    df, archetype_col, feature_cols, winsorise, contamination=0.1
 ):
     cleaned_df = pd.DataFrame()
 
     for archetype in df[archetype_col].unique():
         subset = df[df[archetype_col] == archetype]
 
-        # # Apply Isolation Forest
+        # ---- Uncomment one of the approaches below
+        # APROACH 1: Apply Isolation Forest
         # iso = IsolationForest(contamination=contamination, random_state=42)
         # preds = iso.fit_predict(subset[feature_cols])
 
         # # Keep only inliers (prediction == 1)
         # subset_cleaned = subset[preds == 1]
 
+        # APROACH 2: Use IQR to filter out outliers
         Q1 = subset[feature_cols].quantile(0.25)
         Q3 = subset[feature_cols].quantile(0.75)
         IQR = Q3 - Q1
@@ -153,18 +167,49 @@ def remove_outliers_within_archetypes(
         lower_bound = Q1 - 1.5 * IQR
         upper_bound = Q3 + 1.5 * IQR
 
+        # APPROACH 3: use quantiles directly if you prefer
         # lower_bound = subset[target_feature].quantile(0.05)
         # upper_bound = subset[target_feature].quantile(0.90)
 
         # print(lower_bound, upper_bound)
 
+        # --------
         # Filter out outliers
-        subset_cleaned = subset[
-            (subset[feature_cols] >= lower_bound)
-            & (subset[feature_cols] <= upper_bound)
-        ]
+        print("Processing archetype:", archetype)
+        print("Lower bound:", lower_bound)
+        print("Upper bound:", upper_bound)
 
-        cleaned_df = pd.concat([cleaned_df, subset_cleaned], ignore_index=True)
+        subset_clean = subset.copy()
+        if winsorise == "none":
+            # Filter out outliers on both ends
+            subset_clean = subset_clean[
+                (subset_clean[target_feature] >= lower_bound)
+                & (subset_clean[target_feature] <= upper_bound)
+            ]
+        elif winsorise == "both":
+            # Winsorise all outliers
+            subset_clean[target_feature] = subset_clean[target_feature].apply(
+                lambda x: upper_bound if (x > upper_bound) else x
+            )
+            subset_clean[target_feature] = subset_clean[target_feature].apply(
+                lambda x: lower_bound if (x < lower_bound) else x
+            )
+        elif winsorise == "upper":
+            # Filter out outliers on the lower end
+            subset_clean = subset_clean[(subset_clean[target_feature] >= lower_bound)]
+            # Winsorise outliers on the upper end
+            subset_clean[target_feature] = subset_clean[target_feature].apply(
+                lambda x: upper_bound if (x > upper_bound) else x
+            )
+        elif winsorise == "lower":
+            # Winsorise outliers on the lower end
+            subset_clean[target_feature] = subset_clean[target_feature].apply(
+                lambda x: lower_bound if (x < lower_bound) else x
+            )
+            # Filter out outliers on both ends
+            subset_clean = subset_clean[(subset_clean[target_feature] <= upper_bound)]
+
+        cleaned_df = pd.concat([cleaned_df, subset_clean], ignore_index=True)
 
     return cleaned_df
 
@@ -1195,7 +1240,7 @@ x_train, x_test, y_train, y_test = train_test_split(
 
 
 # %%
-
+from sklearn.ensemble import GradientBoostingRegressor
 
 # %%
 param_grid = dict(
@@ -1289,9 +1334,6 @@ print(
 )
 
 # %%
-x_train
 
-# %%
-x_train.columns
 
 # %%
