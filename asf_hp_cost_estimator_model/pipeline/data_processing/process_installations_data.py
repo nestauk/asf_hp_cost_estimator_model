@@ -258,7 +258,7 @@ def remove_samples_exclusion_criteria(
         and ("adjusted_cost_lower_bound" not in exclusion_criteria_dict)
         and ("cost_lower_bound" not in exclusion_criteria_dict)
     ):
-        filtered_data = remove_cost_outliers_per_group(
+        filtered_data = remove_or_winsorise_cost_outliers_per_group(
             filtered_data, target_feature=config["target_feature"]
         )
 
@@ -521,19 +521,28 @@ def generate_df_adjusted_costs(
     return mcs_epc_inf
 
 
-def remove_cost_outliers_per_group(
-    data: pd.DataFrame, target_feature: str = config["target_feature"]
+def remove_or_winsorise_cost_outliers_per_group(
+    data: pd.DataFrame,
+    target_feature: str = config["target_feature"],
+    winsorise: str = "upper",
 ):
     """
-    Remove outliers from cost data for each group, where a group is a combination of
+    Remove or winsorise outliers from cost data for each group, where a group is a combination of
     PROPERTY_TYPE, CONSTRUCTION_AGE_BAND, and NUMBER_HABITABLE_ROOMS.
 
     Args:
         data (pd.DataFrame): installations data
         target_feature (str, optional): cost feature to use as target. Defaults to config["target_feature"].
+        winsorise (str, optional): whether to winsorise outliers. Defaults to "upper".Takes "upper", "lower",
+        "both" and "none" as values.
+            "upper": upper outliers are replaced with the upper bound and lower outliers are removed
+            "lower": lower outliers are replaced with the lower bound and upper outliers are removed
+            "both": upper outliers are replaced with the upper bound and lower outliers are replaced with the lower bound
+            "none": both lower and upper outliers are removed
     """
+    # Creating a "8+" category, while keeping number of habitable rooms as a numeric variable
     data["NUMBER_HABITABLE_ROOMS"] = data["NUMBER_HABITABLE_ROOMS"].apply(
-        lambda x: 9 if x > 9 else x
+        lambda x: 8 if x > 8 else x
     )
     combinations = (
         data.groupby(
@@ -575,13 +584,37 @@ def remove_cost_outliers_per_group(
         lower_bound = Q1 - 1.5 * IQR
         upper_bound = Q3 + 1.5 * IQR
 
-        # Filter out outliers
-        subset_cleaned = subset[
-            (subset[target_feature] >= lower_bound)
-            & (subset[target_feature] <= upper_bound)
-        ]
+        subset_clean = subset.copy()
+        if winsorise == "none":
+            # Filter out outliers on both ends
+            subset_clean = subset_clean[
+                (subset_clean[target_feature] >= lower_bound)
+                & (subset_clean[target_feature] <= upper_bound)
+            ]
+        elif winsorise == "both":
+            # Winsorise all outliers
+            subset_clean[target_feature] = subset_clean[target_feature].apply(
+                lambda x: upper_bound if (x > upper_bound) else x
+            )
+            subset_clean[target_feature] = subset_clean[target_feature].apply(
+                lambda x: lower_bound if (x < lower_bound) else x
+            )
+        elif winsorise == "upper":
+            # Filter out outliers on the lower end
+            subset_clean = subset_clean[(subset_clean[target_feature] >= lower_bound)]
+            # Winsorise outliers on the upper end
+            subset_clean[target_feature] = subset_clean[target_feature].apply(
+                lambda x: upper_bound if (x > upper_bound) else x
+            )
+        elif winsorise == "lower":
+            # Winsorise outliers on the lower end
+            subset_clean[target_feature] = subset_clean[target_feature].apply(
+                lambda x: lower_bound if (x < lower_bound) else x
+            )
+            # Filter out outliers on both ends
+            subset_clean = subset_clean[(subset_clean[target_feature] <= upper_bound)]
 
-        cleaned_df = pd.concat([cleaned_df, subset_cleaned], ignore_index=True)
+        cleaned_df = pd.concat([cleaned_df, subset_clean], ignore_index=True)
 
     return cleaned_df
 
