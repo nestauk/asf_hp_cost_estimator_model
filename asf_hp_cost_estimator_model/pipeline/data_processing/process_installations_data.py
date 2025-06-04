@@ -661,13 +661,12 @@ def process_data_before_modelling(
         enhanced_installations_data
     )
 
-    # costs are adjusted before exlcusion criteria (which includes a threshold for cost) are applied
-    enhanced_installations_data = generate_df_adjusted_costs(
-        mcs_epc_df=enhanced_installations_data, cpi_quarters_df=cpi_quarterly_df
-    )
-
     enhanced_installations_data = remove_samples_exclusion_criteria(
         enhanced_installations_data, exclusion_criteria_dict
+    )
+
+    enhanced_installations_data = generate_df_adjusted_costs(
+        mcs_epc_df=enhanced_installations_data, cpi_quarters_df=cpi_quarterly_df
     )
 
     enhanced_installations_data = choose_epc_records(enhanced_installations_data)
