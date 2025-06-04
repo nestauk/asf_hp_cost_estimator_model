@@ -1,5 +1,5 @@
 """
-Pipeline for fitting models to to estimate the cost interval for air source heat pumps,
+Pipeline for fitting models to estimate the cost interval for air source heat pumps,
 using quantile regression through Gradient Boosting Regressor with quantile loss.
 It defaults to producing a 80% confidence interval by fitting models using the 10th and 90th percentiles.
 
