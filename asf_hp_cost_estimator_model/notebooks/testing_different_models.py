@@ -206,7 +206,7 @@ def remove_outliers_within_archetypes(
             subset_clean[target_feature] = subset_clean[target_feature].apply(
                 lambda x: lower_bound if (x < lower_bound) else x
             )
-            # Filter out outliers on both ends
+            # Filter out outliers on upper end
             subset_clean = subset_clean[(subset_clean[target_feature] <= upper_bound)]
 
         cleaned_df = pd.concat([cleaned_df, subset_clean], ignore_index=True)
