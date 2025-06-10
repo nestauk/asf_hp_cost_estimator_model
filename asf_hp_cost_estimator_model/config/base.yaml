@@ -31,8 +31,8 @@ lad_to_region_census_2011_filename: "Local_Authority_District_to_Region_(April_2
 
 ### MCS EPC DATA ###
 
-# MCS-EPC data up to Q3 2024 (date is the date of processing)
-mcs_epc_filename_date: "250310"
+# MCS-EPC data up to Q1 2025 (date is the date of processing)
+mcs_epc_filename_date: "250609"
 
 # Fields in the MCS-EPC data that we're importing
 relevant_mcs_epc_fields:
