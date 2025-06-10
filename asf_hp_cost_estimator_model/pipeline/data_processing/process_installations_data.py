@@ -186,7 +186,7 @@ def filter_to_relevant_samples(mcs_epc_data: pd.DataFrame) -> pd.DataFrame:
 
 
 def remove_samples_exclusion_criteria(
-    mcs_epc_data: pd.DataFrame, exclusion_criteria_dict: dict
+    mcs_epc_data: pd.DataFrame, exclusion_criteria_dict: dict, winsorise: str = "upper"
 ) -> pd.DataFrame:
     """
     - Cost in a sensible range for an ASHP installation
@@ -196,6 +196,13 @@ def remove_samples_exclusion_criteria(
     Args:
         mcs_epc_data (pd.DataFrame): MCS-EPC records.
         exclusion_criteria_dict (dict): Dictionary of exclusion criteria.
+        winsorise (str, optional): whether to winsorise outliers. Defaults to "upper".Takes "upper", "lower", "both" and "none" as values.
+        "upper": upper outliers are replaced with the upper bound and lower outliers are removed
+        "lower": lower outliers are replaced with the lower bound and upper outliers are removed
+        "both": upper outliers are replaced with the upper bound and lower outliers are replaced with the lower bound
+        "none": both lower and upper outliers are removed
+
+
 
     Returns:
         pd.DataFrame: Records relevant for modelling.
@@ -259,7 +266,9 @@ def remove_samples_exclusion_criteria(
         and ("cost_lower_bound" not in exclusion_criteria_dict)
     ):
         filtered_data = remove_or_winsorise_cost_outliers_per_group(
-            filtered_data, target_feature=config["target_feature"]
+            data=filtered_data,
+            target_feature=config["target_feature"],
+            winsorise=winsorise,
         )
 
     if "NUMBER_HABITABLE_ROOMS_lower_bound" in exclusion_criteria_dict:
@@ -533,7 +542,7 @@ def remove_or_winsorise_cost_outliers_per_group(
     Args:
         data (pd.DataFrame): installations data
         target_feature (str, optional): cost feature to use as target. Defaults to config["target_feature"].
-        winsorise (str, optional): whether to winsorise outliers. Defaults to "upper".Takes "upper", "lower",
+        winsorise (str, optional): whether to winsorise outliers. Defaults to "upper". Takes "upper", "lower",
         "both" and "none" as values.
             "upper": upper outliers are replaced with the upper bound and lower outliers are removed
             "lower": lower outliers are replaced with the lower bound and upper outliers are removed
@@ -625,6 +634,7 @@ def process_data_before_modelling(
     cpi_quarterly_df: pd.DataFrame,
     hp_when_built_threshold: int = config["hp_when_built_threshold"],
     exclusion_criteria_dict: dict = config["exclusion_criteria"],
+    winsorise: str = config["winsorise_outliers"],
     min_date: dict = config["min_date"],
     rooms_as_categorical: bool = False,
 ) -> pd.DataFrame:
@@ -662,7 +672,9 @@ def process_data_before_modelling(
     )
 
     enhanced_installations_data = remove_samples_exclusion_criteria(
-        enhanced_installations_data, exclusion_criteria_dict
+        mcs_epc_data=enhanced_installations_data,
+        exclusion_criteria_dict=exclusion_criteria_dict,
+        winsorise=winsorise,
     )
 
     enhanced_installations_data = generate_df_adjusted_costs(
