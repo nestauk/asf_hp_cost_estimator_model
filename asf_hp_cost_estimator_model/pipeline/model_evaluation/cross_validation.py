@@ -11,7 +11,6 @@ python asf_hp_cost_estimator_model/pipeline/model_evaluation/cross_validation.py
 
 # package imports
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.ensemble import GradientBoostingRegressor
 import logging
