@@ -28,6 +28,7 @@ from asf_hp_cost_estimator_model.pipeline.data_processing.process_cpi import (
     get_df_quarterly_cpi_with_adjustment_factors,
 )
 from asf_hp_cost_estimator_model.getters.data_getters import get_cpi_data
+from asf_hp_cost_estimator_model.utils.model_evaluation_utils import compute_metrics
 
 
 def argparse_setup():
@@ -112,6 +113,17 @@ def fit_and_save_model(lower_quantile: float = 0.1, upper_quantile: float = 0.9)
 
     regressor_upper_q = set_up_pipeline(upper_quantile)
     regressor_upper_q.fit(X, y)
+
+    # Printing model evaluation metrics
+    y_pred_lower = regressor_lower_q.predict(X)
+    y_pred_upper = regressor_upper_q.predict(X)
+    compute_metrics(
+        y=y,
+        y_pred_lower=y_pred_lower,
+        y_pred_upper=y_pred_upper,
+        lower_quantile=lower_quantile,
+        upper_quantile=upper_quantile,
+    )
 
     # Save models
     today_date = datetime.today().strftime("%Y%m%d")
