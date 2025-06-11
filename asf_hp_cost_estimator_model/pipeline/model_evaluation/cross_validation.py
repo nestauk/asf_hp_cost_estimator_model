@@ -99,13 +99,13 @@ if __name__ == "__main__":
     )
 
     # Lists to store metrics for each fold
-    list_train_mean_minball_loss_lower_perc = []
-    list_train_mean_minball_loss_upper_perc = []
+    list_train_mean_pinball_loss_lower_perc = []
+    list_train_mean_pinball_loss_upper_perc = []
     list_train_coverage = []
     list_train_avg_width = []
 
-    list_test_mean_minball_loss_lower_perc = []
-    list_test_mean_minball_loss_upper_perc = []
+    list_test_mean_pinball_loss_lower_perc = []
+    list_test_mean_pinball_loss_upper_perc = []
     list_test_coverage = []
     list_test_avg_width = []
 
@@ -145,13 +145,13 @@ if __name__ == "__main__":
 
         # Compute metrics for the current fold in the training set
         (
-            list_train_mean_minball_loss_lower_perc,
-            list_train_mean_minball_loss_upper_perc,
+            list_train_mean_pinball_loss_lower_perc,
+            list_train_mean_pinball_loss_upper_perc,
             list_train_coverage,
             list_train_avg_width,
         ) = append_metrics(
-            list_mean_minball_loss_lower_perc=list_train_mean_minball_loss_lower_perc,
-            list_mean_minball_loss_upper_perc=list_train_mean_minball_loss_upper_perc,
+            list_mean_minball_loss_lower_perc=list_train_mean_pinball_loss_lower_perc,
+            list_mean_minball_loss_upper_perc=list_train_mean_pinball_loss_upper_perc,
             list_coverage=list_train_coverage,
             list_avg_width=list_train_avg_width,
             y=y_train,
@@ -163,13 +163,13 @@ if __name__ == "__main__":
 
         # Compute metrics for the current fold in the test set
         (
-            list_test_mean_minball_loss_lower_perc,
-            list_test_mean_minball_loss_upper_perc,
+            list_test_mean_pinball_loss_lower_perc,
+            list_test_mean_pinball_loss_upper_perc,
             list_test_coverage,
             list_test_avg_width,
         ) = append_metrics(
-            list_mean_minball_loss_lower_perc=list_test_mean_minball_loss_lower_perc,
-            list_mean_minball_loss_upper_perc=list_test_mean_minball_loss_upper_perc,
+            list_mean_minball_loss_lower_perc=list_test_mean_pinball_loss_lower_perc,
+            list_mean_minball_loss_upper_perc=list_test_mean_pinball_loss_upper_perc,
             list_coverage=list_test_coverage,
             list_avg_width=list_test_avg_width,
             y=y_test,
@@ -181,20 +181,20 @@ if __name__ == "__main__":
 
     logging.info("----- MODEL EVALUATION RESULTS ON TRAINING SET -----")
     logging.info(
-        f"Mean Pinball Loss for Lower Bound: {np.mean(list_train_mean_minball_loss_lower_perc):.2f}"
+        f"Mean Pinball Loss for Lower Bound: {np.mean(list_train_mean_pinball_loss_lower_perc):.2f}"
     )
     logging.info(
-        f"Mean Pinball Loss for Upper Bound: {np.mean(list_train_mean_minball_loss_upper_perc):.2f}"
+        f"Mean Pinball Loss for Upper Bound: {np.mean(list_train_mean_pinball_loss_upper_perc):.2f}"
     )
     logging.info(f"Coverage probability: {np.mean(list_train_coverage):.2%}")
     logging.info(f"Average Interval Width: {np.mean(list_train_avg_width):.2f}")
 
     logging.info("\n----- MODEL EVALUATION RESULTS ON TEST SET -----")
     logging.info(
-        f"Mean Pinball Loss for Lower Bound: {np.mean(list_test_mean_minball_loss_lower_perc):.2f}"
+        f"Mean Pinball Loss for Lower Bound: {np.mean(list_test_mean_pinball_loss_lower_perc):.2f}"
     )
     logging.info(
-        f"Mean Pinball Loss for Upper Bound: {np.mean(list_test_mean_minball_loss_upper_perc):.2f}"
+        f"Mean Pinball Loss for Upper Bound: {np.mean(list_test_mean_pinball_loss_upper_perc):.2f}"
     )
     logging.info(f"Coverage probability: {np.mean(list_test_coverage):.2%}")
     logging.info(f"Average Interval Width: {np.mean(list_test_avg_width):.2f}")
