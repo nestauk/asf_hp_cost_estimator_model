@@ -92,7 +92,11 @@ if __name__ == "__main__":
     X = model_data[numeric_features + categorical_features]
     y = model_data[target_feature].values.ravel()
 
-    kf = KFold(n_splits=5, shuffle=True, random_state=config["random_state"])
+    kf = KFold(
+        n_splits=config["kfold_splits"],
+        shuffle=True,
+        random_state=config["random_state"],
+    )
 
     # Lists to store metrics for each fold
     list_train_mean_minball_loss_lower_perc = []
