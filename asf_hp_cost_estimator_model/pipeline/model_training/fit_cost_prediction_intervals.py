@@ -4,7 +4,7 @@ using quantile regression through Gradient Boosting Regressor with quantile loss
 It defaults to producing a 80% confidence interval by fitting models using the 10th and 90th percentiles.
 
 This script can be run from the command line, allowing for custom quantiles to be specified:
-    python fit_cost_prediction_intervals.py --lower_quantile 0.1 --upper_quantile 0.9
+    python asf_hp_cost_estimator_model/pipeline/model_training/fit_cost_prediction_intervals.py --lower_quantile 0.1 --upper_quantile 0.9
 """
 
 import boto3
@@ -121,8 +121,8 @@ def fit_and_save_model(lower_quantile: float = 0.1, upper_quantile: float = 0.9)
         y=y,
         y_pred_lower=y_pred_lower,
         y_pred_upper=y_pred_upper,
-        lower_quantile=lower_quantile,
-        upper_quantile=upper_quantile,
+        alpha_lower=lower_quantile,
+        alpha_upper=upper_quantile,
     )
 
     # Save models
