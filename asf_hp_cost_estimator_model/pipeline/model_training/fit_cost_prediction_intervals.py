@@ -59,7 +59,7 @@ def argparse_setup():
 
 
 def create_df_with_predictions(
-    y: np.array, y_pred_lower: np.array, y_pred_upper: np.array
+    X: np.array, y: np.array, y_pred_lower: np.array, y_pred_upper: np.array
 ) -> pd.DataFrame:
     """
     Creates a DataFrame with predictions for the lower and upper quantiles.
@@ -71,7 +71,9 @@ def create_df_with_predictions(
     Returns:
         pd.DataFrame: DataFrame containing true values and predicted bounds.
     """
-    predictions_df = pd.DataFrame()
+    predictions_df = pd.DataFrame(
+        X, columns=config["numeric_features"] + config["categorical_features"]
+    )
     predictions_df["y_true"] = y
     predictions_df["y_pred_lower"] = y_pred_lower
     predictions_df["y_pred_upper"] = y_pred_upper
@@ -150,7 +152,9 @@ def fit_and_save_model(lower_quantile: float = 0.1, upper_quantile: float = 0.9)
     # Save models and predictions
     today_date = datetime.today().strftime("%Y%m%d")
 
-    predictions_df = create_df_with_predictions(y, y_pred_lower, y_pred_upper)
+    predictions_df = create_df_with_predictions(
+        X=X, y=y, y_pred_lower=y_pred_lower, y_pred_upper=y_pred_upper
+    )
     predictions_df.to_csv(
         f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/predictions_{lower_quantile}_{upper_quantile}.csv",
         index=False,
