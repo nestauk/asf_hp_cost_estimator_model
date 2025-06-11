@@ -7,6 +7,8 @@ This script can be run from the command line, allowing for custom quantiles to b
     python asf_hp_cost_estimator_model/pipeline/model_training/fit_cost_prediction_intervals.py --lower_quantile 0.1 --upper_quantile 0.9
 """
 
+import numpy as np
+import pandas as pd
 import boto3
 from datetime import datetime
 import pickle
@@ -54,6 +56,26 @@ def argparse_setup():
         help="Upper quantile for cost estimation.",
     )
     return parser.parse_args()
+
+
+def create_df_with_predictions(
+    y: np.array, y_pred_lower: np.array, y_pred_upper: np.array
+) -> pd.DataFrame:
+    """
+    Creates a DataFrame with predictions for the lower and upper quantiles.
+    Args:
+        X (np.array): Feature matrix.
+        y (np.array): True values of the target variable.
+        y_pred_lower (np.array): Predicted lower bounds of the intervals.
+        y_pred_upper (np.array): Predicted upper bounds of the intervals.
+    Returns:
+        pd.DataFrame: DataFrame containing true values and predicted bounds.
+    """
+    predictions_df = pd.DataFrame()
+    predictions_df["y_true"] = y
+    predictions_df["y_pred_lower"] = y_pred_lower
+    predictions_df["y_pred_upper"] = y_pred_upper
+    return predictions_df
 
 
 def set_up_pipeline(quantile: float) -> Pipeline:
@@ -125,8 +147,14 @@ def fit_and_save_model(lower_quantile: float = 0.1, upper_quantile: float = 0.9)
         alpha_upper=upper_quantile,
     )
 
-    # Save models
+    # Save models and predictions
     today_date = datetime.today().strftime("%Y%m%d")
+
+    predictions_df = create_df_with_predictions(y, y_pred_lower, y_pred_upper)
+    predictions_df.to_csv(
+        f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/predictions_{lower_quantile}_{upper_quantile}.csv",
+        index=False,
+    )
 
     s3_resource = boto3.resource("s3")
     regressor_lower_q = pickle.dumps(regressor_lower_q)
