@@ -69,7 +69,7 @@ exclusion_criteria:
   PROPERTY_TYPE_allowed_list: ["House", "Bungalow"]
 
 # winsorise
-winsorise: "upper"
+winsorise_outliers: "upper"
 
 # Start date for MCS-EPC data
 min_date: "2007-01-01"
