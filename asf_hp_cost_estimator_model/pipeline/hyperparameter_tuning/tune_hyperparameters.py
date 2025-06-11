@@ -104,7 +104,7 @@ if __name__ == "__main__":
     param_grid = dict(
         learning_rate=[0.01, 0.05, 0.1, 0.2],
         max_depth=[3, 5, 10, 20],
-        min_samples_leaf=[1, 5, 10, 100, 10000],
+        min_samples_leaf=[1, 5, 10, 100, 1000],
         min_samples_split=[2, 10, 50, 100, 1000],
     )
 
