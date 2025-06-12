@@ -31,8 +31,8 @@ lad_to_region_census_2011_filename: "Local_Authority_District_to_Region_(April_2
 
 ### MCS EPC DATA ###
 
-# MCS-EPC data up to Q3 2024 (date is the date of processing)
-mcs_epc_filename_date: "250310"
+# MCS-EPC data up to Q1 2025 (date is the date of processing)
+mcs_epc_filename_date: "250609"
 
 # Fields in the MCS-EPC data that we're importing
 relevant_mcs_epc_fields:
@@ -67,6 +67,9 @@ exclusion_criteria:
   TOTAL_FLOOR_AREA_lower_bound: 20
   TOTAL_FLOOR_AREA_upper_bound: 500
   PROPERTY_TYPE_allowed_list: ["House", "Bungalow"]
+
+# winsorise
+winsorise_outliers: "upper"
 
 # Start date for MCS-EPC data
 min_date: "2007-01-01"
@@ -113,10 +116,19 @@ kfold_splits: 5
 # Date for comparing model performance in latest predictions
 date_for_latest_predictions: "2023-01-01"
 
-# Model hyperparameters
-n_estimators: 450
-min_samples_leaf: 100
-min_samples_split: 10
 random_state: 42
-learning_rate: 0.2
-max_depth: 5
+
+# Model hyperparameters
+hyper_parameters:
+  lower_bound_model:
+    n_estimators: 450
+    min_samples_leaf: 100
+    min_samples_split: 10
+    learning_rate: 0.1
+    max_depth: 10
+  upper_bound_model:
+    n_estimators: 450
+    min_samples_leaf: 1
+    min_samples_split: 1000
+    learning_rate: 0.2
+    max_depth: 5

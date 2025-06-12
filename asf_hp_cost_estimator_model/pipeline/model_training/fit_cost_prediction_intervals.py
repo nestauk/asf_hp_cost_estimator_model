@@ -4,9 +4,11 @@ using quantile regression through Gradient Boosting Regressor with quantile loss
 It defaults to producing a 80% confidence interval by fitting models using the 10th and 90th percentiles.
 
 This script can be run from the command line, allowing for custom quantiles to be specified:
-    python fit_cost_prediction_intervals.py --lower_quantile 0.1 --upper_quantile 0.9
+    python asf_hp_cost_estimator_model/pipeline/model_training/fit_cost_prediction_intervals.py --lower_quantile 0.1 --upper_quantile 0.9
 """
 
+import numpy as np
+import pandas as pd
 import boto3
 from datetime import datetime
 import pickle
@@ -28,6 +30,7 @@ from asf_hp_cost_estimator_model.pipeline.data_processing.process_cpi import (
     get_df_quarterly_cpi_with_adjustment_factors,
 )
 from asf_hp_cost_estimator_model.getters.data_getters import get_cpi_data
+from asf_hp_cost_estimator_model.utils.model_evaluation_utils import compute_metrics
 
 
 def argparse_setup():
@@ -55,23 +58,46 @@ def argparse_setup():
     return parser.parse_args()
 
 
-def set_up_pipeline(quantile: float) -> Pipeline:
+def create_df_with_predictions(
+    X: np.array, y: np.array, y_pred_lower: np.array, y_pred_upper: np.array
+) -> pd.DataFrame:
+    """
+    Creates a DataFrame with predictions for the lower and upper quantiles.
+    Args:
+        X (np.array): Feature matrix.
+        y (np.array): True values of the target variable.
+        y_pred_lower (np.array): Predicted lower bounds of the intervals.
+        y_pred_upper (np.array): Predicted upper bounds of the intervals.
+    Returns:
+        pd.DataFrame: DataFrame containing true values and predicted bounds.
+    """
+    predictions_df = pd.DataFrame(
+        X, columns=config["numeric_features"] + config["categorical_features"]
+    )
+    predictions_df["y_true"] = y
+    predictions_df["y_pred_lower"] = y_pred_lower
+    predictions_df["y_pred_upper"] = y_pred_upper
+    return predictions_df
+
+
+def set_up_pipeline(quantile: float, model_bound: str) -> Pipeline:
     """
     Set up a pipeline to train a model to estimate the cost of an air source heat pump.
 
     Returns:
         quantile (float): The quantile to be used by GradientBoostingRegressor.
+        model_bound (str): Takes "lower_bound_model" and "upper_bound_model" to specify the model for lower and upper quantiles respectively.
     """
 
     regressor = GradientBoostingRegressor(
         loss="quantile",
         alpha=quantile,
-        n_estimators=config["n_estimators"],
-        min_samples_leaf=config["min_samples_leaf"],
-        min_samples_split=config["min_samples_split"],
+        n_estimators=config["hyper_parameters"][model_bound]["n_estimators"],
+        min_samples_leaf=config["hyper_parameters"][model_bound]["min_samples_leaf"],
+        min_samples_split=config["hyper_parameters"][model_bound]["min_samples_split"],
         random_state=config["random_state"],
-        learning_rate=config["learning_rate"],
-        max_depth=config["max_depth"],
+        learning_rate=config["hyper_parameters"][model_bound]["learning_rate"],
+        max_depth=config["hyper_parameters"][model_bound]["max_depth"],
     )
 
     return regressor
@@ -107,14 +133,37 @@ def fit_and_save_model(lower_quantile: float = 0.1, upper_quantile: float = 0.9)
     y = model_data[target_feature].values.ravel()
 
     # Train models
-    regressor_lower_q = set_up_pipeline(lower_quantile)
+    regressor_lower_q = set_up_pipeline(
+        quantile=lower_quantile, model_bound="lower_bound_model"
+    )
     regressor_lower_q.fit(X, y)
 
-    regressor_upper_q = set_up_pipeline(upper_quantile)
+    regressor_upper_q = set_up_pipeline(
+        quantile=upper_quantile, model_bound="upper_bound_model"
+    )
     regressor_upper_q.fit(X, y)
 
-    # Save models
+    # Printing model evaluation metrics
+    y_pred_lower = regressor_lower_q.predict(X)
+    y_pred_upper = regressor_upper_q.predict(X)
+    compute_metrics(
+        y=y,
+        y_pred_lower=y_pred_lower,
+        y_pred_upper=y_pred_upper,
+        alpha_lower=lower_quantile,
+        alpha_upper=upper_quantile,
+    )
+
+    # Save models and predictions
     today_date = datetime.today().strftime("%Y%m%d")
+
+    predictions_df = create_df_with_predictions(
+        X=X, y=y, y_pred_lower=y_pred_lower, y_pred_upper=y_pred_upper
+    )
+    predictions_df.to_csv(
+        f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/predictions_{lower_quantile}_{upper_quantile}.csv",
+        index=False,
+    )
 
     s3_resource = boto3.resource("s3")
     regressor_lower_q = pickle.dumps(regressor_lower_q)
