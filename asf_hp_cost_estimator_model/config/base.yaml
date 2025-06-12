@@ -116,10 +116,19 @@ kfold_splits: 5
 # Date for comparing model performance in latest predictions
 date_for_latest_predictions: "2023-01-01"
 
-# Model hyperparameters
-n_estimators: 450
-min_samples_leaf: 100
-min_samples_split: 10
 random_state: 42
-learning_rate: 0.2
-max_depth: 5
+
+# Model hyperparameters
+hyper_parameters:
+  lower_bound_model:
+    n_estimators: 450
+    min_samples_leaf: 100
+    min_samples_split: 10
+    learning_rate: 0.1
+    max_depth: 10
+  upper_bound_model:
+    n_estimators: 450
+    min_samples_leaf: 1
+    min_samples_split: 1000
+    learning_rate: 0.2
+    max_depth: 5

@@ -116,12 +116,20 @@ if __name__ == "__main__":
         model_lower = GradientBoostingRegressor(
             loss="quantile",
             alpha=lower_quantile,
-            n_estimators=config["n_estimators"],
-            min_samples_leaf=config["min_samples_leaf"],
-            min_samples_split=config["min_samples_split"],
+            n_estimators=config["hyper_parameters"]["lower_bound_model"][
+                "n_estimators"
+            ],
+            min_samples_leaf=config["hyper_parameters"]["lower_bound_model"][
+                "min_samples_leaf"
+            ],
+            min_samples_split=config["hyper_parameters"]["lower_bound_model"][
+                "min_samples_split"
+            ],
             random_state=config["random_state"],
-            learning_rate=config["learning_rate"],
-            max_depth=config["max_depth"],
+            learning_rate=config["hyper_parameters"]["lower_bound_model"][
+                "learning_rate"
+            ],
+            max_depth=config["hyper_parameters"]["lower_bound_model"]["max_depth"],
         )
         model_lower.fit(x_train, y_train)
 
@@ -131,12 +139,20 @@ if __name__ == "__main__":
         model_upper = GradientBoostingRegressor(
             loss="quantile",
             alpha=upper_quantile,
-            n_estimators=config["n_estimators"],
-            min_samples_leaf=config["min_samples_leaf"],
-            min_samples_split=config["min_samples_split"],
+            n_estimators=config["hyper_parameters"]["upper_bound_model"][
+                "n_estimators"
+            ],
+            min_samples_leaf=config["hyper_parameters"]["upper_bound_model"][
+                "min_samples_leaf"
+            ],
+            min_samples_split=config["hyper_parameters"]["upper_bound_model"][
+                "min_samples_split"
+            ],
             random_state=config["random_state"],
-            learning_rate=config["learning_rate"],
-            max_depth=config["max_depth"],
+            learning_rate=config["hyper_parameters"]["upper_bound_model"][
+                "learning_rate"
+            ],
+            max_depth=config["hyper_parameters"]["upper_bound_model"]["max_depth"],
         )
         model_upper.fit(x_train, y_train)
 

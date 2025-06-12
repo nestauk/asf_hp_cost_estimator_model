@@ -80,23 +80,24 @@ def create_df_with_predictions(
     return predictions_df
 
 
-def set_up_pipeline(quantile: float) -> Pipeline:
+def set_up_pipeline(quantile: float, model_bound: str) -> Pipeline:
     """
     Set up a pipeline to train a model to estimate the cost of an air source heat pump.
 
     Returns:
         quantile (float): The quantile to be used by GradientBoostingRegressor.
+        model_bound (str): Takes "lower_bound_model" and "upper_bound_model" to specify the model for lower and upper quantiles respectively.
     """
 
     regressor = GradientBoostingRegressor(
         loss="quantile",
         alpha=quantile,
-        n_estimators=config["n_estimators"],
-        min_samples_leaf=config["min_samples_leaf"],
-        min_samples_split=config["min_samples_split"],
+        n_estimators=config["hyper_parameters"][model_bound]["n_estimators"],
+        min_samples_leaf=config["hyper_parameters"][model_bound]["min_samples_leaf"],
+        min_samples_split=config["hyper_parameters"][model_bound]["min_samples_split"],
         random_state=config["random_state"],
-        learning_rate=config["learning_rate"],
-        max_depth=config["max_depth"],
+        learning_rate=config["hyper_parameters"][model_bound]["learning_rate"],
+        max_depth=config["hyper_parameters"][model_bound]["max_depth"],
     )
 
     return regressor
@@ -132,10 +133,14 @@ def fit_and_save_model(lower_quantile: float = 0.1, upper_quantile: float = 0.9)
     y = model_data[target_feature].values.ravel()
 
     # Train models
-    regressor_lower_q = set_up_pipeline(lower_quantile)
+    regressor_lower_q = set_up_pipeline(
+        quantile=lower_quantile, model_bound="lower_bound_model"
+    )
     regressor_lower_q.fit(X, y)
 
-    regressor_upper_q = set_up_pipeline(upper_quantile)
+    regressor_upper_q = set_up_pipeline(
+        quantile=upper_quantile, model_bound="upper_bound_model"
+    )
     regressor_upper_q.fit(X, y)
 
     # Printing model evaluation metrics
