@@ -10,27 +10,18 @@ python asf_hp_cost_estimator_model/pipeline/model_evaluation/cross_validation.py
 """
 
 # package imports
-import numpy as np
+import pandas as pd
 from sklearn.model_selection import KFold
 from sklearn.ensemble import GradientBoostingRegressor
+from typing import Dict, Any
 import logging
 
 # local imports
-from asf_hp_cost_estimator_model.pipeline.data_processing.process_installations_data import (
-    process_data_before_modelling,
-)
-from asf_hp_cost_estimator_model.getters.data_getters import (
-    get_enhanced_installations_data,
-)
-from asf_hp_cost_estimator_model.pipeline.data_processing.process_location_data import (
-    get_postcodes_data,
-)
 from asf_hp_cost_estimator_model import config
-from asf_hp_cost_estimator_model.pipeline.data_processing.process_cpi import (
-    get_df_quarterly_cpi_with_adjustment_factors,
+from asf_hp_cost_estimator_model.utils.model_evaluation_utils import (
+    load_and_prepare_data,
+    compute_metrics,
 )
-from asf_hp_cost_estimator_model.getters.data_getters import get_cpi_data
-from asf_hp_cost_estimator_model.utils.model_evaluation_utils import append_metrics
 
 
 def argparse_setup():
@@ -58,39 +49,71 @@ def argparse_setup():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
-    args = argparse_setup()
-    lower_quantile = args.lower_quantile
-    upper_quantile = args.upper_quantile
+def create_model(
+    quantile: float, model_params: Dict[str, Any], random_state: int
+) -> GradientBoostingRegressor:
+    """Instantiates a GradientBoostingRegressor model for a specific quantile.
 
-    # Load and process data
-    mcs_epc_data = get_enhanced_installations_data()
-    cpi_05_3_df = get_cpi_data()
-    cpi_quarterly_df = get_df_quarterly_cpi_with_adjustment_factors(
-        ref_year=config["cpi_data"]["cpi_reference_year"],
-        cpi_df=cpi_05_3_df,
-        cpi_col_header=config["cpi_data"]["cpi_column_header"],
-    )
-    postcodes_data = get_postcodes_data()
+    Args:
+        quantile (float): The quantile to be predicted (e.g., 0.1 for 10th percentile).
+        model_params (Dict[str, Any]): Hyperparameters for the model.
+        random_state (int): Random state for reproducibility.
 
-    model_data = process_data_before_modelling(
-        mcs_epc_data=mcs_epc_data,
-        postcodes_data=postcodes_data,
-        cpi_quarterly_df=cpi_quarterly_df,
-        exclusion_criteria_dict=config["exclusion_criteria"],
-        winsorise=config["winsorise_outliers"],
-        min_date=config["min_date"],
+    Returns:
+        GradientBoostingRegressor: Configured model instance.
+    """
+
+    return GradientBoostingRegressor(
+        loss="quantile",
+        alpha=quantile,
+        random_state=random_state,
+        **model_params,
     )
 
-    # Define features and target
-    numeric_features = config["numeric_features"]
-    original_categorical_features = config["categorical_features_to_dummify"]
-    categorical_features = config["categorical_features"]
-    target_feature = config["target_feature"]
 
-    # Preparing data for modelling
-    X = model_data[numeric_features + categorical_features]
-    y = model_data[target_feature].values.ravel()
+def log_results(title: str, results_df: pd.DataFrame):
+    """Calculates and logs the mean of the results.
+
+    Args:
+        title (str): Title for the log section.
+        results_df (pd.DataFrame): DataFrame containing results from cross-validation folds.
+    """
+    mean_results = results_df.mean()
+    logging.info(f"----- {title.upper()} -----")
+    logging.info(
+        f"Mean pinball loss (Lower): {mean_results['mean_pinball_loss_lower_q']:.2f}"
+    )
+    logging.info(
+        f"Mean pinball loss (Median): {mean_results['mean_pinball_loss_median']:.2f}"
+    )
+    logging.info(
+        f"Mean pinball loss (Upper): {mean_results['mean_pinball_loss_upper_q']:.2f}"
+    )
+    logging.info(f"Coverage probability: {mean_results['coverage']:.2%}")
+    logging.info(f"Interval width: £{mean_results['interval_width']:,.2f}")
+    logging.info(
+        f"Proportion of samples where median is outside bounds: {mean_results['prop_samples_median_outside_bounds']:.2%}"
+    )
+    logging.info(
+        f"Proportion of samples where median is closer to lower bound than upper bound: {mean_results['prop_samples_median_closer_to_lower_bound']:.2f}"
+    )
+    logging.info("------------")
+
+
+def run_cross_validation(lower_quantile: float, upper_quantile: float):
+    """Runs k-fold cross-validation to evaluate model performance.
+    Args:
+        lower_quantile (float): Lower quantile for prediction intervals.
+        upper_quantile (float): Upper quantile for prediction intervals.
+    """
+    model_data, validation_set, features = load_and_prepare_data()
+
+    X = model_data[features]
+    y = model_data[config["target_feature"]].values
+
+    # Prepare validation set features and target
+    X_val = validation_set[features]
+    y_val = validation_set[config["target_feature"]].values
 
     kf = KFold(
         n_splits=config["kfold_splits"],
@@ -98,119 +121,99 @@ if __name__ == "__main__":
         random_state=config["random_state"],
     )
 
-    # Lists to store metrics for each fold
-    list_train_mean_pinball_loss_lower_perc = []
-    list_train_mean_pinball_loss_upper_perc = []
-    list_train_coverage = []
-    list_train_avg_width = []
+    # Define the models to train in a structured way
+    models_to_train = {
+        "lower": {
+            "quantile": lower_quantile,
+            "params": config["hyper_parameters"]["lower_bound_model"],
+        },
+        "median": {
+            "quantile": 0.5,
+            "params": config["hyper_parameters"]["median_model"],
+        },
+        "upper": {
+            "quantile": upper_quantile,
+            "params": config["hyper_parameters"]["upper_bound_model"],
+        },
+    }
 
-    list_test_mean_pinball_loss_lower_perc = []
-    list_test_mean_pinball_loss_upper_perc = []
-    list_test_coverage = []
-    list_test_avg_width = []
+    # Use a dictionary to store results from all folds
+    results = {"train": [], "test": [], "validation": []}
 
-    for train_index, test_index in kf.split(X):
-        x_train, x_test = X.iloc[train_index], X.iloc[test_index]
+    logging.info(f"Starting {config['kfold_splits']}-fold cross-validation...")
+    for i, (train_index, test_index) in enumerate(kf.split(X)):
+        logging.info(f"--- Fold {i+1}/{config['kfold_splits']} ---")
+
+        # Splitting the data
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        model_lower = GradientBoostingRegressor(
-            loss="quantile",
-            alpha=lower_quantile,
-            n_estimators=config["hyper_parameters"]["lower_bound_model"][
-                "n_estimators"
-            ],
-            min_samples_leaf=config["hyper_parameters"]["lower_bound_model"][
-                "min_samples_leaf"
-            ],
-            min_samples_split=config["hyper_parameters"]["lower_bound_model"][
-                "min_samples_split"
-            ],
-            random_state=config["random_state"],
-            learning_rate=config["hyper_parameters"]["lower_bound_model"][
-                "learning_rate"
-            ],
-            max_depth=config["hyper_parameters"]["lower_bound_model"]["max_depth"],
+        # Predictions for the current fold
+        y_preds = {"train": {}, "test": {}, "validation": {}}
+
+        # Train models for each quantile
+        for name, model_info in models_to_train.items():
+            model = create_model(
+                quantile=model_info["quantile"],
+                model_params=model_info["params"],
+                random_state=config["random_state"],
+            )
+            model.fit(X_train, y_train)
+
+            # Generate and store predictions for all data splits
+            y_preds["train"][name] = model.predict(X_train)
+            y_preds["test"][name] = model.predict(X_test)
+            y_preds["validation"][name] = model.predict(X_val)
+
+        # Evaluate and store metrics for each data split
+        results["train"].append(
+            compute_metrics(
+                y=y_train,
+                y_pred_lower=y_preds["train"]["lower"],
+                y_pred_median=y_preds["train"]["median"],
+                y_pred_upper=y_preds["train"]["upper"],
+                alpha_lower=lower_quantile,
+                alpha_upper=upper_quantile,
+                log_metrics=False,
+            )
         )
-        model_lower.fit(x_train, y_train)
-
-        y_pred_lower_test = model_lower.predict(x_test)
-        y_pred_lower_train = model_lower.predict(x_train)
-
-        model_upper = GradientBoostingRegressor(
-            loss="quantile",
-            alpha=upper_quantile,
-            n_estimators=config["hyper_parameters"]["upper_bound_model"][
-                "n_estimators"
-            ],
-            min_samples_leaf=config["hyper_parameters"]["upper_bound_model"][
-                "min_samples_leaf"
-            ],
-            min_samples_split=config["hyper_parameters"]["upper_bound_model"][
-                "min_samples_split"
-            ],
-            random_state=config["random_state"],
-            learning_rate=config["hyper_parameters"]["upper_bound_model"][
-                "learning_rate"
-            ],
-            max_depth=config["hyper_parameters"]["upper_bound_model"]["max_depth"],
+        results["test"].append(
+            compute_metrics(
+                y=y_test,
+                y_pred_lower=y_preds["test"]["lower"],
+                y_pred_median=y_preds["test"]["median"],
+                y_pred_upper=y_preds["test"]["upper"],
+                alpha_lower=lower_quantile,
+                alpha_upper=upper_quantile,
+                log_metrics=False,
+            )
         )
-        model_upper.fit(x_train, y_train)
-
-        y_pred_upper_test = model_upper.predict(x_test)
-        y_pred_upper_train = model_upper.predict(x_train)
-
-        # Compute metrics for the current fold in the training set
-        (
-            list_train_mean_pinball_loss_lower_perc,
-            list_train_mean_pinball_loss_upper_perc,
-            list_train_coverage,
-            list_train_avg_width,
-        ) = append_metrics(
-            list_mean_minball_loss_lower_perc=list_train_mean_pinball_loss_lower_perc,
-            list_mean_minball_loss_upper_perc=list_train_mean_pinball_loss_upper_perc,
-            list_coverage=list_train_coverage,
-            list_avg_width=list_train_avg_width,
-            y=y_train,
-            y_pred_upper=y_pred_upper_train,
-            y_pred_lower=y_pred_lower_train,
-            alpha_lower=lower_quantile,
-            alpha_upper=upper_quantile,
+        results["validation"].append(
+            compute_metrics(
+                y=y_val,
+                y_pred_lower=y_preds["validation"]["lower"],
+                y_pred_median=y_preds["validation"]["median"],
+                y_pred_upper=y_preds["validation"]["upper"],
+                alpha_lower=lower_quantile,
+                alpha_upper=upper_quantile,
+                log_metrics=False,
+            )
         )
 
-        # Compute metrics for the current fold in the test set
-        (
-            list_test_mean_pinball_loss_lower_perc,
-            list_test_mean_pinball_loss_upper_perc,
-            list_test_coverage,
-            list_test_avg_width,
-        ) = append_metrics(
-            list_mean_minball_loss_lower_perc=list_test_mean_pinball_loss_lower_perc,
-            list_mean_minball_loss_upper_perc=list_test_mean_pinball_loss_upper_perc,
-            list_coverage=list_test_coverage,
-            list_avg_width=list_test_avg_width,
-            y=y_test,
-            y_pred_upper=y_pred_upper_test,
-            y_pred_lower=y_pred_lower_test,
-            alpha_lower=lower_quantile,
-            alpha_upper=upper_quantile,
-        )
+    logging.info("Cross-validation finished. Aggregating results...")
+    results_df_train = pd.DataFrame(results["train"])
+    results_df_test = pd.DataFrame(results["test"])
+    results_df_validation = pd.DataFrame(results["validation"])
 
-    logging.info("----- MODEL EVALUATION RESULTS ON TRAINING SET -----")
-    logging.info(
-        f"Mean Pinball Loss for Lower Bound: {np.mean(list_train_mean_pinball_loss_lower_perc):.2f}"
-    )
-    logging.info(
-        f"Mean Pinball Loss for Upper Bound: {np.mean(list_train_mean_pinball_loss_upper_perc):.2f}"
-    )
-    logging.info(f"Coverage probability: {np.mean(list_train_coverage):.2%}")
-    logging.info(f"Average Interval Width: {np.mean(list_train_avg_width):.2f}")
+    # Logging the final averaged results
+    log_results("Training set CV Results", results_df_train)
+    log_results("Test set CV Results", results_df_test)
+    log_results("Validation set CV Results", results_df_validation)
 
-    logging.info("\n----- MODEL EVALUATION RESULTS ON TEST SET -----")
-    logging.info(
-        f"Mean Pinball Loss for Lower Bound: {np.mean(list_test_mean_pinball_loss_lower_perc):.2f}"
-    )
-    logging.info(
-        f"Mean Pinball Loss for Upper Bound: {np.mean(list_test_mean_pinball_loss_upper_perc):.2f}"
-    )
-    logging.info(f"Coverage probability: {np.mean(list_test_coverage):.2%}")
-    logging.info(f"Average Interval Width: {np.mean(list_test_avg_width):.2f}")
+
+if __name__ == "__main__":
+    args = argparse_setup()
+    lower_quantile = args.lower_quantile
+    upper_quantile = args.upper_quantile
+
+    run_cross_validation(lower_quantile, upper_quantile)
