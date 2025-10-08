@@ -287,41 +287,47 @@ def run_drift_analysis(
     Args:
         todays_model_performance (dict): Dictionary containing today's model performance metrics.
     """
+    assess_drift = True
+
+    # Get all folders in s3://asf-hp-cost-estimator-model/outputs/model/
+    s3_client = boto3.client("s3")
+    response = s3_client.list_objects_v2(
+        Bucket="asf-hp-cost-estimator-model", Prefix="outputs/model/", Delimiter="/"
+    )
+    all_folders = [
+        prefix["Prefix"].split("/")[2] for prefix in response.get("CommonPrefixes", [])
+    ]
+
+    # Get the most recent folder
+    most_recent_folder = max(all_folders)
 
     # If there is no previous model performance data, log a warning and exit
     try:
-        # Get all folders in s3://asf-hp-cost-estimator-model/outputs/model/
-        s3_client = boto3.client("s3")
-        response = s3_client.list_objects_v2(
-            Bucket="asf-hp-cost-estimator-model", Prefix="outputs/model/", Delimiter="/"
-        )
-        all_folders = [
-            prefix["Prefix"].split("/")[2]
-            for prefix in response.get("CommonPrefixes", [])
-        ]
-
-        # Get the most recent folder
-        most_recent_folder = max(all_folders)
-
         # Read json file from s3://asf-hp-cost-estimator-model/outputs/ called model_performance.json
         models_performance = pd.read_json(
             f"s3://asf-hp-cost-estimator-model/outputs/model_performance.json"
         )
 
-        # Append todays_model_performance to models_performance
-        models_performance[today_date] = todays_model_performance
+    except Exception as e:
+        logging.warning(f"No previous model performance data to compare!")
+        assess_drift = False
+        models_performance = dict()
 
+    # Append todays_model_performance to models_performance
+    models_performance[today_date] = todays_model_performance
+
+    if not test_mode:
+        # Save updated models_performance to s3
+        models_performance.to_json(
+            f"s3://asf-hp-cost-estimator-model/outputs/model_performance.json",
+            orient="columns",
+        )
+
+    if assess_drift:
         # Compare results from today with the most recent folder
         logging.info(
             f"Running drift analysis comparing with folder: {most_recent_folder}"
         )
-
-        if not test_mode:
-            # Save updated models_performance to s3
-            models_performance.to_json(
-                f"s3://asf-hp-cost-estimator-model/outputs/model_performance.json",
-                orient="columns",
-            )
 
         previous_model_performance = models_performance[most_recent_folder]
         for df in ["full_dataset", "latest_quarter"]:
@@ -334,8 +340,6 @@ def run_drift_analysis(
                     logging.warning(
                         f"Drift detected in {key}: {previous_df_metrics[key]} -> {today_df_metrics[key]}"
                     )
-    except Exception as e:
-        logging.error(f"No previous model performance data to compare!")
 
 
 if __name__ == "__main__":
