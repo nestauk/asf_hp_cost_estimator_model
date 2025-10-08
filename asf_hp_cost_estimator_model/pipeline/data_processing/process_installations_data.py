@@ -637,6 +637,7 @@ def process_data_before_modelling(
     winsorise: str = config["winsorise_outliers"],
     min_date: dict = config["min_date"],
     rooms_as_categorical: bool = False,
+    processing_validation_set: bool = False,
 ) -> pd.DataFrame:
     """
     Get clean MCS-EPC data in suitable format for modelling.
@@ -671,11 +672,12 @@ def process_data_before_modelling(
         enhanced_installations_data
     )
 
-    enhanced_installations_data = remove_samples_exclusion_criteria(
-        mcs_epc_data=enhanced_installations_data,
-        exclusion_criteria_dict=exclusion_criteria_dict,
-        winsorise=winsorise,
-    )
+    if not processing_validation_set:
+        enhanced_installations_data = remove_samples_exclusion_criteria(
+            mcs_epc_data=enhanced_installations_data,
+            exclusion_criteria_dict=exclusion_criteria_dict,
+            winsorise=winsorise,
+        )
 
     enhanced_installations_data = generate_df_adjusted_costs(
         mcs_epc_df=enhanced_installations_data, cpi_quarters_df=cpi_quarterly_df
