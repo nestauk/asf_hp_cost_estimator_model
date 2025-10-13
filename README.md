@@ -10,7 +10,7 @@ The `asf_hp_cost_estimator_model` repository contains the code to model and pred
 
 ## 🚀 Modelling the cost of an air source heat pump
 
-[Quantile regression gradient boosting regressor models](https://scikit-learn.org/stable/auto_examples/ensemble/plot_gradient_boosting_quantile.html) are fitted to create prediction intervals for the cost of an air source heat pump (80% confidence intervals, by fitting models on the 10th and 90th percentile).
+[Quantile regression gradient boosting regressor models](https://scikit-learn.org/stable/auto_examples/ensemble/plot_gradient_boosting_quantile.html) are fitted to create prediction intervals for the cost of an air source heat pump (80% confidence intervals, by fitting models on the 10th and 90th percentile). A model is also fitted to predict the median cost (50th percentile).
 
 The target variable is the overall cost of installation and the predictors include:
 
@@ -91,8 +91,6 @@ asf_hp_cost_estimator_model
 |    |   ├─ process_installations_data.py
 │    ├─ model_training/ - model training scripts
 |    |    |- fit_cost_prediction_intervals.py
-│    ├─ model_evaluation/ - scripts for model evaluation
-|    |    |- cross_validation.py
 │    ├─ hyperparameter_tuning/ - scripts for hyperparameter tuning
 |    |    |- tune_hyperparameters.py
 │    ├─ README.md - instructions to run the different pipelines
@@ -116,21 +114,20 @@ When new quarter data is made available you can follow the steps to retrain the 
    - `cpi_reference_year`: update the CPI reference year accordingly
    - Location data sources: review and update location sources as required
    - `mcs_epc_filename_date`: update with newest date of MCS-EPC data processing
-3. Re-run hyperparameter tuning pipeline:
+3. Re-run hyperparameter tuning (and cross validation) pipeline:
 
 - Run `python asf_hp_cost_estimator_model/pipeline/hyperparameter_tuning/tune_hyperparameters.py`
 - Take note of the hyperparameters logged
 
 4. Update `asf_hp_cost_estimator_model/config/base.yaml` after tuning hyperparameters:
+
    - change `hyper_parameters` according to the hyperparameters logged in the previous step
-5. Re-run cross-validation pipeline:
-   - Run `python asf_hp_cost_estimator_model/pipeline/model_evaluation/cross_validation.py`
-   - Assess results logged
-6. Retrain models:
+
+5. Retrain models:
    - Run `python asf_hp_cost_estimator_model/pipeline/model_training/fit_cost_prediction_intervals.py`
    - Models are saved to S3
-7. Update sections "🆕 Latest data" and "🧩 Data sources" of this `REAMDE.md` to reflect changes.
-8. Let the tech/design team know that the model has been updated, so that they can restart the API.
+6. Update sections "🆕 Latest data" and "🧩 Data sources" of this `REAMDE.md` to reflect changes.
+7. Let the tech/design team know that the model has been updated, so that they can restart the API.
 
 ## ⚙️ Setup
 
