@@ -1,20 +1,27 @@
 """
-This script performs hyperparameter tuning for a Gradient Boosting Regressor models for three different quantiles:
-- lower quantile
-- median
-- upper quantile
+This script performs hyperparameter tuning and cross validation for Gradient Boosting Regressor models for three different quantiles:
+- lower quantile, e.g. 10th percentile
+- median (50th percentile)
+- upper quantile, e.g. 90th percentile
 
-After tuning the model, it evaluates the model on training, test sets and an unseen validation set of data from.
-It loggs various metrics such as mean pinball loss, coverage probability, and interval widths.
+The data is split into training and two hold-out test sets. One test set is a 20% random sample of most recent quarter of data. All of the remaining data is split into training and test set.
+Hyperparameter tuning is performed using Halving Random Search with cross-validation on the training set.
+
+After tuning the models, they are evaluated on the training, test set and and most recent quarter hold-out test set.
+The script loggs various metrics such as mean pinball loss, coverage probability, and interval widths.
+
+The best hyperparameters and evaluation metrics are then saved as CSV files to S3.
 
 Usage:
 python asf_hp_cost_estimator_model/pipeline/hyperparameter_tuning/tune_hyperparameters.py --lower_quantile 0.1 --upper_quantile 0.9
 """
 
 # package imports
-from typing import Any, Dict
+import yaml
+import os
+from typing import Union, Dict, List, Tuple
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from datetime import datetime
 from sklearn.metrics import make_scorer, mean_pinball_loss
 from sklearn.experimental import enable_halving_search_cv  # noqa
 from sklearn.model_selection import HalvingRandomSearchCV
@@ -23,10 +30,24 @@ import logging
 
 # local imports
 from asf_hp_cost_estimator_model import config
+from asf_hp_cost_estimator_model import PROJECT_DIR
 from asf_hp_cost_estimator_model.utils.model_evaluation_utils import (
-    load_and_prepare_data,
     compute_metrics,
 )
+from asf_hp_cost_estimator_model.pipeline.data_processing.process_installations_data import (
+    process_data_before_modelling,
+)
+from asf_hp_cost_estimator_model.getters.data_getters import (
+    get_enhanced_installations_data,
+)
+from asf_hp_cost_estimator_model.pipeline.data_processing.process_location_data import (
+    get_postcodes_data,
+)
+from asf_hp_cost_estimator_model import config
+from asf_hp_cost_estimator_model.pipeline.data_processing.process_cpi import (
+    get_df_quarterly_cpi_with_adjustment_factors,
+)
+from asf_hp_cost_estimator_model.getters.data_getters import get_cpi_data
 
 
 def argparse_setup():
@@ -58,21 +79,25 @@ def tune_model(
     X_train: pd.DataFrame,
     y_train: pd.Series,
     quantile: float,
-    param_grid: Dict[str, Any],
-    conf: Dict[str, Any],
-) -> Dict[str, Any]:
+    param_grid: Dict[str, List[Union[int, float]]],
+) -> Dict[str, Union[int, float]]:
     """
     Performs hyperparameter tuning for a Gradient Boosting Regressor for a specific quantile.
+    Args:
+        X_train (pd.DataFrame): Training feature data.
+        y_train (pd.Series): Training target data.
+        quantile (float): The quantile to be predicted (e.g., 0.1 for 10th percentile).
+        param_grid (Dict[str, List[Union[int, float]]]): Grid of hyperparameters to search over.
 
     Returns:
-        Dict[str, Any]: The best parameters found by the search.
+        Dict[str, Union[int, float]]: Best hyperparameters found during the search.
     """
     logging.info(f"--- Starting hyperparameter search for quantile: {quantile} ---")
 
     scorer = make_scorer(mean_pinball_loss, alpha=quantile, greater_is_better=False)
 
     gbr = GradientBoostingRegressor(
-        loss="quantile", alpha=quantile, random_state=conf["random_state"]
+        loss="quantile", alpha=quantile, random_state=config["random_state"]
     )
 
     search = HalvingRandomSearchCV(
@@ -83,54 +108,108 @@ def tune_model(
         min_resources=50,
         scoring=scorer,
         n_jobs=-1,  # Use all available cores
-        random_state=conf["random_state"],
+        random_state=config["random_state"],
     ).fit(X_train, y_train)
 
-    logging.info(f"Best parameters for quantile {quantile}:")
     logging.info(search.best_params_)
 
-    return search.best_params_
+    return search
 
 
-def evaluate_and_log_metrics(
-    dataset_name: str,
-    y_true: pd.Series,
-    X_data: pd.DataFrame,
-    models: Dict[str, GradientBoostingRegressor],
-    lower_quantile: float,
-    upper_quantile: float,
-):
-    """Generates predictions and logs evaluation metrics for a given dataset.
+def split_data(mcs_epc_data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Samples a random 20% of the data from the newest quarter of data to create a hold-out test set.
+
+    The remaining data (all but the hold-out set) is used for hyperparameter tuning and cross-validation.
+
 
     Args:
-        dataset_name (str): Name of the dataset (e.g., "Training set", "Test set", "Validation set").
-        y_true (pd.Series): True target values.
-        X_data (pd.DataFrame): Feature data.
-        models (Dict[str, GradientBoostingRegressor]): Dictionary containing the trained models for lower, median, and upper quantiles.
-        lower_quantile (float): The lower quantile used for the lower bound model.
-        upper_quantile (float): The upper quantile used for the upper bound model.
+        mcs_epc_data (pd.DataFrame): DataFrame containing the installations data.
+
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame]: DataFrame for CV/hyperparameter tuning and DataFrame for hold-out test set.
+    """
+    # Identifying first date of newest quarter to create a hold-out validation set from the most recent data
+    valid_dates = mcs_epc_data[mcs_epc_data["commission_date"] < datetime.today()]
+    max_date = valid_dates["commission_date"].max()
+    first_day_of_quarter = max_date.to_period("Q").start_time
+
+    # Creating a validation set from the newest quarter of data
+    new_quarter_data = mcs_epc_data[
+        mcs_epc_data["commission_date"] >= first_day_of_quarter
+    ]
+    new_quarter_hold_out_set = new_quarter_data.sample(
+        frac=0.2, random_state=config["random_state"]
+    )
+    mcs_epc_data = mcs_epc_data.drop(new_quarter_hold_out_set.index)
+
+    return mcs_epc_data, new_quarter_hold_out_set
+
+
+def load_and_prepare_data(
+    model_data: pd.DataFrame,
+    test_set: pd.DataFrame,
+    new_quarter_hold_out_set: pd.DataFrame,
+) -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
+    """Loads and preprocesses all necessary data prior to hyperparameter tuning or cross validation.
+
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame, List[str]]: Processed model data, validation set, and list of feature names.
     """
 
-    logging.info(f"\n----- MODEL EVALUATION RESULTS ON {dataset_name.upper()} -----")
+    logging.info("Loading and processing data...")
 
-    # Generate predictions
-    y_pred_lower = models["lower"].predict(X_data)
-    y_pred_median = models["median"].predict(X_data)
-    y_pred_upper = models["upper"].predict(X_data)
+    cpi_df = get_cpi_data()
+    postcodes_data = get_postcodes_data()
 
-    # Compute and log metrics
-    compute_metrics(
-        y=y_true,
-        y_pred_lower=y_pred_lower,
-        y_pred_median=y_pred_median,
-        y_pred_upper=y_pred_upper,
-        alpha_lower=lower_quantile,
-        alpha_upper=upper_quantile,
+    cpi_quarterly_df = get_df_quarterly_cpi_with_adjustment_factors(
+        ref_year=config["cpi_data"]["cpi_reference_year"],
+        cpi_df=cpi_df,
+        cpi_col_header=config["cpi_data"]["cpi_column_header"],
     )
+
+    # Hold-out test set from newest quarter is processed without removing or winsorising outliers
+    new_quarter_hold_out_set = process_data_before_modelling(
+        mcs_epc_data=new_quarter_hold_out_set,
+        postcodes_data=postcodes_data,
+        cpi_quarterly_df=cpi_quarterly_df,
+        min_date=config["min_date"],
+        remove_or_winsorise_samples=False,
+    )
+
+    # Overall test set is processed without removing or winsorising outliers
+    test_set = process_data_before_modelling(
+        mcs_epc_data=test_set,
+        postcodes_data=postcodes_data,
+        cpi_quarterly_df=cpi_quarterly_df,
+        min_date=config["min_date"],
+        remove_or_winsorise_samples=False,
+    )
+
+    # Processing the rest of the data for modelling
+    model_data = process_data_before_modelling(
+        mcs_epc_data=model_data,
+        postcodes_data=postcodes_data,
+        cpi_quarterly_df=cpi_quarterly_df,
+        exclusion_criteria_dict=config["exclusion_criteria"],
+        min_date=config["min_date"],
+        remove_or_winsorise_samples=True,
+        winsorise=config["winsorise_outliers"],
+    )
+
+    logging.info(f"Model data size: {model_data.shape[0]}")
+    logging.info(f"Test set size: {test_set.shape[0]}")
+    logging.info(f"New quarter hold-out set size: {new_quarter_hold_out_set.shape[0]}")
+
+    features = config["numeric_features"] + config["categorical_features"]
+
+    return model_data, test_set, new_quarter_hold_out_set, features
 
 
 def run_hyperparameter_tuning(
-    lower_quantile: float, upper_quantile: float, param_grid: Dict[str, Any]
+    lower_quantile: float,
+    upper_quantile: float,
+    param_grid: Dict[str, List[Union[int, float]]],
 ):
     """
     Runs hyperparameter tuning.
@@ -138,25 +217,34 @@ def run_hyperparameter_tuning(
     Args:
         lower_quantile (float): lower quantile for the prediction interval.
         upper_quantile (float): upper quantile for the prediction interval.
-        param_grid (Dict[str, Any]): grid of hyperparameters to search over.
+        param_grid (Dict[str, List[Union[int, float]]): grid of hyperparameters to search over.
     """
+    mcs_epc_data = get_enhanced_installations_data()
+    model_data, new_quarter_hold_out_set = split_data(mcs_epc_data=mcs_epc_data)
+
+    # Further split model_data into training and test sets
+    test_set = model_data.sample(frac=0.2)
+    model_data = model_data.drop(test_set.index)
 
     # Load and prepare data for modelling
-    model_data, validation_set, features = load_and_prepare_data()
+    model_data, test_set, new_quarter_hold_out_set, features = load_and_prepare_data(
+        model_data, test_set, new_quarter_hold_out_set
+    )
 
     target_feature = config["target_feature"]
+    # Ensure target feature is not in features list
+    if target_feature in features:
+        features.remove(target_feature)
 
+    # Separating features and target variable
     X = model_data[features]
     y = model_data[target_feature].values.ravel()
 
-    # Split the data into training and test sets
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=config["random_state"]
-    )
+    X_test = test_set[features]
+    y_test = test_set[target_feature].values.ravel()
 
-    # Prepare validation set
-    X_val = validation_set[features]
-    y_val = validation_set[target_feature].values
+    X_new_quarter_hold_out = new_quarter_hold_out_set[features]
+    y_new_quarter_hold_out = new_quarter_hold_out_set[target_feature].values.ravel()
 
     # Define the models we want to tune
     models_to_tune = {
@@ -167,11 +255,21 @@ def run_hyperparameter_tuning(
 
     # Tune each model and store the best parameters
     best_params = {}
+    cv_scores = {}
     for name, quantile in models_to_tune.items():
-        best_params[name] = tune_model(X_train, y_train, quantile, param_grid, config)
+        # Perform hyperparameter tuning and output best model info
+        tuned_model = tune_model(X, y, quantile, param_grid)
+
+        # Best hyperparameters for the current quantile model
+        best_params[name] = tuned_model.best_params_
+
+        # Mean cross-validated score (mean pinball loss) of the best estimator
+        cv_scores_name = f"mean_pinball_loss_{name}"
+        cv_scores_name += "_q" if name != "median" else ""
+        cv_scores[cv_scores_name] = -tuned_model.best_score_
 
     # Train final models on the full training set using the best parameters
-    logging.info("\nTraining final models with best hyperparameters...")
+    logging.info("Training final models with best hyperparameters...")
     final_models = {}
     for name, params in best_params.items():
         quantile = models_to_tune[name]
@@ -181,19 +279,60 @@ def run_hyperparameter_tuning(
             random_state=config["random_state"],
             **params,
         )
-        model.fit(X_train, y_train)
+        model.fit(X, y)
         final_models[name] = model
 
-    # Evaluate models on all three datasets
-    evaluate_and_log_metrics(
-        "Training set", y_train, X_train, final_models, lower_quantile, upper_quantile
+    # Generate predictions for training, test, and new quarter hold-out sets
+    predictions = {}
+    for name, model in final_models.items():
+        predictions[name] = {}
+        predictions[name]["train"] = model.predict(X)
+        predictions[name]["test"] = model.predict(X_test)
+        predictions[name]["new_quarter_hold_out"] = model.predict(
+            X_new_quarter_hold_out
+        )
+
+    # Compute and log evaluation metrics
+    metrics = {}
+    metrics["cross_validation_results"] = cv_scores
+    logging.info(f"Cross-validated mean pinball loss scores: {cv_scores}")
+    print_ = {
+        "train": "Training",
+        "test": "Test",
+        "new_quarter_hold_out": "Test (new quarter)",
+    }
+    for key in print_.keys():
+        metrics[key] = compute_metrics(
+            dataset_name=f"{print_[key]} set",
+            y=(
+                y
+                if key == "train"
+                else (y_test if key == "test" else y_new_quarter_hold_out)
+            ),
+            y_pred_lower=predictions["lower"][key],
+            y_pred_median=predictions["median"][key],
+            y_pred_upper=predictions["upper"][key],
+            alpha_lower=lower_quantile,
+            alpha_upper=upper_quantile,
+        )
+
+    # Save the best hyperparameters and metrics to S3
+    logging.info("Saving best hyperparameters and evaluation metrics to S3...")
+    today_date = datetime.today().strftime("%Y%m%d")
+    best_params_df = pd.DataFrame(best_params).T
+
+    best_params_df.to_csv(
+        f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/best_hyperparameters_{lower_quantile}_{upper_quantile}.csv",
     )
-    evaluate_and_log_metrics(
-        "Test set", y_test, X_test, final_models, lower_quantile, upper_quantile
+    metrics_df = pd.DataFrame(metrics).T
+
+    metrics_df.to_csv(
+        f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/model_evaluation_metrics_{lower_quantile}_{upper_quantile}.csv",
     )
-    evaluate_and_log_metrics(
-        "Validation set", y_val, X_val, final_models, lower_quantile, upper_quantile
-    )
+
+    # Update config with best hyperparameters
+    # with open(os.path.join(PROJECT_DIR,"asf_hp_cost_estimator_model/config/base.yaml"), "w") as f:
+    #     yaml.safe_dump(config, f)
 
 
 if __name__ == "__main__":
@@ -201,17 +340,9 @@ if __name__ == "__main__":
     lower_quantile = args.lower_quantile
     upper_quantile = args.upper_quantile
 
-    # Define the parameter grid for hyperparameter tuning
-    param_grid = dict(
-        learning_rate=[0.01, 0.05, 0.1, 0.2],
-        max_depth=[3, 5, 10, 20],
-        min_samples_leaf=[1, 5, 10, 100, 1000],
-        min_samples_split=[2, 10, 50, 100, 1000],
-    )
-
     logging.info("Starting hyperparameter tuning process...")
     run_hyperparameter_tuning(
         lower_quantile=lower_quantile,
         upper_quantile=upper_quantile,
-        param_grid=param_grid,
+        param_grid=config["param_grid"],
     )
