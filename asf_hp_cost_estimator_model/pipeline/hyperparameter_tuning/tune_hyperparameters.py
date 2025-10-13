@@ -12,8 +12,8 @@ The script loggs various metrics such as mean pinball loss, coverage probability
 
 The best hyperparameters and evaluation metrics are then saved as CSV files to S3.
 
-Usage:
-python asf_hp_cost_estimator_model/pipeline/hyperparameter_tuning/tune_hyperparameters.py --lower_quantile 0.1 --upper_quantile 0.9
+This script can be run from the command line, allowing for custom quantiles to be specified (and whether to run in test mode):
+    python asf_hp_cost_estimator_model/pipeline/hyperparameter_tuning/tune_hyperparameters.py --lower_quantile 0.1 --upper_quantile 0.9 --test False
 """
 
 # package imports
@@ -71,6 +71,12 @@ def argparse_setup():
         type=float,
         default=0.9,
         help="Upper quantile for cost estimation.",
+    )
+    parser.add_argument(
+        "--test",
+        type=bool,
+        default=True,
+        help="Run in test mode with reduced data for quick testing.",
     )
     return parser.parse_args()
 
@@ -210,6 +216,7 @@ def run_hyperparameter_tuning(
     lower_quantile: float,
     upper_quantile: float,
     param_grid: Dict[str, List[Union[int, float]]],
+    test_mode: bool = True,
 ):
     """
     Runs hyperparameter tuning.
@@ -218,6 +225,7 @@ def run_hyperparameter_tuning(
         lower_quantile (float): lower quantile for the prediction interval.
         upper_quantile (float): upper quantile for the prediction interval.
         param_grid (Dict[str, List[Union[int, float]]): grid of hyperparameters to search over.
+        test_mode (bool, optional): whether to run in test mode (doesn't save data). Defaults to True.
     """
     mcs_epc_data = get_enhanced_installations_data()
     model_data, new_quarter_hold_out_set = split_data(mcs_epc_data=mcs_epc_data)
@@ -316,19 +324,19 @@ def run_hyperparameter_tuning(
             alpha_upper=upper_quantile,
         )
 
-    # Save the best hyperparameters and metrics to S3
-    logging.info("Saving best hyperparameters and evaluation metrics to S3...")
-    today_date = datetime.today().strftime("%Y%m%d")
-    best_params_df = pd.DataFrame(best_params).T
+    # Save the best hyperparameters and metrics to S3 if not in test mode
+    if test_mode:
+        logging.info("Saving best hyperparameters and evaluation metrics to S3...")
+        today_date = datetime.today().strftime("%Y%m%d")
+        best_params_df = pd.DataFrame(best_params).T
+        best_params_df.to_csv(
+            f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/best_hyperparameters_{lower_quantile}_{upper_quantile}.csv",
+        )
+        metrics_df = pd.DataFrame(metrics).T
 
-    best_params_df.to_csv(
-        f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/best_hyperparameters_{lower_quantile}_{upper_quantile}.csv",
-    )
-    metrics_df = pd.DataFrame(metrics).T
-
-    metrics_df.to_csv(
-        f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/model_evaluation_metrics_{lower_quantile}_{upper_quantile}.csv",
-    )
+        metrics_df.to_csv(
+            f"s3://asf-hp-cost-estimator-model/outputs/model/{today_date}/model_evaluation_metrics_{lower_quantile}_{upper_quantile}.csv",
+        )
 
     # Update config with best hyperparameters
     # with open(os.path.join(PROJECT_DIR,"asf_hp_cost_estimator_model/config/base.yaml"), "w") as f:
@@ -339,10 +347,12 @@ if __name__ == "__main__":
     args = argparse_setup()
     lower_quantile = args.lower_quantile
     upper_quantile = args.upper_quantile
+    test = args.test
 
     logging.info("Starting hyperparameter tuning process...")
     run_hyperparameter_tuning(
         lower_quantile=lower_quantile,
         upper_quantile=upper_quantile,
         param_grid=config["param_grid"],
+        test_mode=test,
     )
