@@ -72,7 +72,9 @@ def compute_metrics(
         plt.ylabel("Frequency")
         plt.savefig(
             os.path.join(
-                PROJECT_DIR, "outputs/figures", "histogram_interval_widths.png"
+                PROJECT_DIR,
+                "outputs/figures",
+                f"histogram_interval_widths_{dataset_name}.png",
             )
         )
         plt.close()
@@ -102,7 +104,9 @@ def compute_metrics(
         plt.ylabel("Frequency")
         plt.savefig(
             os.path.join(
-                PROJECT_DIR, "outputs/figures", "histogram_ratio_distances.png"
+                PROJECT_DIR,
+                "outputs/figures",
+                f"histogram_ratio_distances_{dataset_name}.png",
             )
         )
         plt.close()
