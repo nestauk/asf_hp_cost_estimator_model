@@ -8,7 +8,7 @@ The data is split into training and two hold-out test sets. One test set is a 20
 Hyperparameter tuning is performed using Halving Random Search with cross-validation on the training set.
 
 After tuning the models, they are evaluated on the training, test set and most recent quarter hold-out test set.
-The script loggs various metrics such as mean pinball loss, coverage probability, and interval widths.
+The script logs various metrics such as mean pinball loss, coverage probability, and interval widths.
 
 The best hyperparameters and evaluation metrics are then saved as CSV files to S3.
 
