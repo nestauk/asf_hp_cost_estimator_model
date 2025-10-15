@@ -240,7 +240,7 @@ def run_hyperparameter_tuning(
     )
 
     # Further split model_data into training and test sets
-    test_set = model_data.sample(frac=0.2)
+    test_set = model_data.sample(frac=0.2, random_state=config["random_state"])
     model_data = model_data.drop(test_set.index)
 
     # Load and prepare data for modelling
