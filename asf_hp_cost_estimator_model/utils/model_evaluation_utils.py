@@ -3,13 +3,12 @@ Util functions to compute/append/log metrics such as:
 - Mean Pinball Loss for lower and upper bounds
 - Coverage probability
 - Average, max, and min interval widths
+- Proportion of samples where median is below lower bound, above upper bound or outside bounds
+- Proportion of samples where median is closer to upper bound than lower bound
 """
 
 # package imports
 import numpy as np
-import pandas as pd
-from datetime import datetime
-from typing import Tuple, List
 import os
 from sklearn.metrics import mean_pinball_loss
 import logging
@@ -17,23 +16,10 @@ import matplotlib.pyplot as plt
 
 # local imports
 from asf_hp_cost_estimator_model import PROJECT_DIR
-from asf_hp_cost_estimator_model.pipeline.data_processing.process_installations_data import (
-    process_data_before_modelling,
-)
-from asf_hp_cost_estimator_model.getters.data_getters import (
-    get_enhanced_installations_data,
-)
-from asf_hp_cost_estimator_model.pipeline.data_processing.process_location_data import (
-    get_postcodes_data,
-)
-from asf_hp_cost_estimator_model import config
-from asf_hp_cost_estimator_model.pipeline.data_processing.process_cpi import (
-    get_df_quarterly_cpi_with_adjustment_factors,
-)
-from asf_hp_cost_estimator_model.getters.data_getters import get_cpi_data
 
 
 def compute_metrics(
+    dataset_name: str,
     y: np.array,
     y_pred_upper: np.array,
     y_pred_lower: np.array,
@@ -47,6 +33,7 @@ def compute_metrics(
     Computes and logs various metrics for evaluating prediction intervals.
 
     Args:
+        dataset_name (str): name of the dataset (e.g., 'train', 'validation', 'test').
         y (np.array): true values of the target variable.
         y_pred_upper (np.array): predicted upper bounds of the intervals.
         y_pred_lower (np.array): predicted lower bounds of the intervals.
@@ -58,6 +45,8 @@ def compute_metrics(
     Returns:
         dict: dictionary containing main metrics.
     """
+    logging.info(f"----- MODEL EVALUATION RESULTS ON {dataset_name.upper()} -----")
+
     main_metrics = {}
 
     # Size of set
@@ -83,7 +72,9 @@ def compute_metrics(
         plt.ylabel("Frequency")
         plt.savefig(
             os.path.join(
-                PROJECT_DIR, "outputs/figures", "histogram_interval_widths.png"
+                PROJECT_DIR,
+                "outputs/figures",
+                f"histogram_interval_widths_{dataset_name}.png",
             )
         )
         plt.close()
@@ -107,11 +98,15 @@ def compute_metrics(
     if save_histogram:
         plt.hist(ratio, bins=30, edgecolor="black")
         plt.title("Histogram of ratio of distances")
-        plt.xlabel("Ratio of distance to lower bound / total distance")
+        plt.xlabel(
+            "Distance(median, lower bound) / Distance(lower bound, upper bound)\n>0.5 means median is closer to upper bound"
+        )
         plt.ylabel("Frequency")
         plt.savefig(
             os.path.join(
-                PROJECT_DIR, "outputs/figures", "histogram_ratio_distances.png"
+                PROJECT_DIR,
+                "outputs/figures",
+                f"histogram_ratio_distances_{dataset_name}.png",
             )
         )
         plt.close()
@@ -139,13 +134,13 @@ def compute_metrics(
             f"Proportion of samples where median is outside bounds: {median_outside_bounds:.2%}"
         )
         logging.info(
-            f"Average Distance between Median and Lower Bound: {avg_distance_median_lower:.2f}"
+            f"Average distance between median and lower bound: {avg_distance_median_lower:.2f}"
         )
         logging.info(
-            f"Average Distance between Median and Upper Bound: {avg_distance_median_upper:.2f}"
+            f"Average distance between median and upper bound: {avg_distance_median_upper:.2f}"
         )
         logging.info(
-            f"Proportion of samples where median is closer to lower bound than upper bound: {(ratio > 0.5).mean():.2%}"
+            f"Proportion of samples where median is closer to upper bound than lower bound: {(ratio > 0.5).mean():.2%}"
         )
 
     # Store main metrics in a dictionary
@@ -155,70 +150,6 @@ def compute_metrics(
     main_metrics["coverage"] = coverage
     main_metrics["interval_width"] = avg_width
     main_metrics["prop_samples_median_outside_bounds"] = median_outside_bounds
-    main_metrics["prop_samples_median_closer_to_lower_bound"] = (ratio > 0.5).mean()
+    main_metrics["prop_samples_median_closer_to_upper_bound"] = (ratio > 0.5).mean()
 
     return main_metrics
-
-
-def load_and_prepare_data() -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
-    """Loads and preprocesses all necessary data prior to hyperparameter tuning or cross validation.
-
-    Returns:
-        Tuple[pd.DataFrame, pd.DataFrame, List[str]]: Processed model data, validation set, and list of feature names.
-    """
-
-    logging.info("Loading and processing data...")
-    mcs_epc_data = get_enhanced_installations_data()
-    cpi_df = get_cpi_data()
-    postcodes_data = get_postcodes_data()
-
-    cpi_quarterly_df = get_df_quarterly_cpi_with_adjustment_factors(
-        ref_year=config["cpi_data"]["cpi_reference_year"],
-        cpi_df=cpi_df,
-        cpi_col_header=config["cpi_data"]["cpi_column_header"],
-    )
-
-    # Identifying first date of newest quarter to create a hold-out validation set from the most recent data
-    valid_dates = mcs_epc_data[mcs_epc_data["commission_date"] < datetime.today()]
-    max_date = valid_dates["commission_date"].max()
-    first_day_of_quarter = max_date.to_period("Q").start_time
-
-    # Creating a validation set from the newest quarter of data
-    new_quarter_data = mcs_epc_data[
-        mcs_epc_data["commission_date"] >= first_day_of_quarter
-    ]
-    validation_set = new_quarter_data.sample(
-        frac=0.2, random_state=config["random_state"]
-    )
-    model_data = mcs_epc_data.drop(validation_set.index)
-
-    # Processing without removing or winsorising outliers
-    validation_set = process_data_before_modelling(
-        mcs_epc_data=validation_set,
-        postcodes_data=postcodes_data,
-        cpi_quarterly_df=cpi_quarterly_df,
-        min_date=config["min_date"],
-        processing_validation_set=True,
-    )
-
-    # Processing the rest of the data for modelling
-    model_data = process_data_before_modelling(
-        mcs_epc_data=model_data,
-        postcodes_data=postcodes_data,
-        cpi_quarterly_df=cpi_quarterly_df,
-        exclusion_criteria_dict=config["exclusion_criteria"],
-        winsorise=config["winsorise_outliers"],
-        min_date=config["min_date"],
-    )
-
-    logging.info(f"Model data size: {model_data.shape[0]}")
-    prop_validation_set = validation_set.shape[0] / (
-        model_data.shape[0] + validation_set.shape[0]
-    )
-    logging.info(
-        f"Validation set size: {validation_set.shape[0]} installations, which is {prop_validation_set:.2%} of the total data"
-    )
-
-    features = config["numeric_features"] + config["categorical_features"]
-
-    return model_data, validation_set, features
