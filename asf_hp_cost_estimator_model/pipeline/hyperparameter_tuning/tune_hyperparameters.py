@@ -12,7 +12,7 @@ The script logs various metrics such as mean pinball loss, coverage probability,
 
 The best hyperparameters and evaluation metrics are then saved as CSV files to S3.
 
-This script can be run from the command line, allowing for custom quantiles to be specified (and whether to run in test mode):
+This script can be run from the command line, allowing for custom quantiles to be specified (and whether to run in test mode, which doesn't save data to S3):
     python asf_hp_cost_estimator_model/pipeline/hyperparameter_tuning/tune_hyperparameters.py --lower_quantile 0.1 --upper_quantile 0.9 --test False
 """
 
@@ -86,7 +86,7 @@ def tune_model(
     y_train: pd.Series,
     quantile: float,
     param_grid: Dict[str, List[Union[int, float]]],
-) -> Dict[str, Union[int, float]]:
+) -> HalvingRandomSearchCV:
     """
     Performs hyperparameter tuning for a Gradient Boosting Regressor for a specific quantile.
     Args:
@@ -96,7 +96,7 @@ def tune_model(
         param_grid (Dict[str, List[Union[int, float]]]): Grid of hyperparameters to search over.
 
     Returns:
-        Dict[str, Union[int, float]]: Best hyperparameters found during the search.
+        HalvingRandomSearchCV: The fitted HalvingRandomSearchCV object containing the best model and parameters.
     """
     logging.info(f"--- Starting hyperparameter search for quantile: {quantile} ---")
 
@@ -115,6 +115,7 @@ def tune_model(
         scoring=scorer,
         n_jobs=-1,  # Use all available cores
         random_state=config["random_state"],
+        cv=config["kfold_splits"],  # number of folds in cross-validation
     ).fit(X_train, y_train)
 
     logging.info(search.best_params_)
@@ -122,7 +123,9 @@ def tune_model(
     return search
 
 
-def split_data(mcs_epc_data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def extract_hold_out_data(
+    mcs_epc_data: pd.DataFrame,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Samples a random 20% of the data from the newest quarter of data to create a hold-out test set.
 
@@ -158,9 +161,13 @@ def load_and_prepare_data(
     new_quarter_hold_out_set: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
     """Loads and preprocesses all necessary data prior to hyperparameter tuning or cross validation.
+    Args:
+        model_data (pd.DataFrame): DataFrame containing the installations data for hyperparameter tuning and cross-validation.
+        test_set (pd.DataFrame): DataFrame containing the installations data for testing.
+        new_quarter_hold_out_set (pd.DataFrame): DataFrame containing the installations data for hold-out test set from the most recent quarter.
 
     Returns:
-        Tuple[pd.DataFrame, pd.DataFrame, List[str]]: Processed model data, validation set, and list of feature names.
+        Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, List[str]]: Processed model data, processed test set, processed hold out test set from latest quarter and list of feature names.
     """
 
     logging.info("Loading and processing data...")
@@ -228,7 +235,9 @@ def run_hyperparameter_tuning(
         test_mode (bool, optional): whether to run in test mode (doesn't save data). Defaults to True.
     """
     mcs_epc_data = get_enhanced_installations_data()
-    model_data, new_quarter_hold_out_set = split_data(mcs_epc_data=mcs_epc_data)
+    model_data, new_quarter_hold_out_set = extract_hold_out_data(
+        mcs_epc_data=mcs_epc_data
+    )
 
     # Further split model_data into training and test sets
     test_set = model_data.sample(frac=0.2)
