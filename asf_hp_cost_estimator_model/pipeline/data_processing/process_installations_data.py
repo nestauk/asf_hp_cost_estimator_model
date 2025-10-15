@@ -634,9 +634,10 @@ def process_data_before_modelling(
     cpi_quarterly_df: pd.DataFrame,
     hp_when_built_threshold: int = config["hp_when_built_threshold"],
     exclusion_criteria_dict: dict = config["exclusion_criteria"],
-    winsorise: str = config["winsorise_outliers"],
     min_date: dict = config["min_date"],
     rooms_as_categorical: bool = False,
+    remove_or_winsorise_samples: bool = True,
+    winsorise: str = config["winsorise_outliers"],
 ) -> pd.DataFrame:
     """
     Get clean MCS-EPC data in suitable format for modelling.
@@ -648,7 +649,16 @@ def process_data_before_modelling(
         exclusion_criteria_dict (dict, optional): Dictionary of exclusion criteria.
         min_date (str, optional): Minimum date to calculate days elapsed from.
         rooms_as_categorical (bool): Whether to treat number of rooms as a categorical
-        variable which is then dummified (True) or to treat it as a continuous variable (False).
+            variable which is then dummified (True) or to treat it as a continuous variable (False).
+        remove_or_winsorise_samples (bool): Whether to remove or winsorise outliers from cost data.
+            True: remove or winsorise outliers from cost data according to exclusion_criteria_dict and winsorise parameters.
+            False: do not remove nor winsorise outliers from cost data.
+        winsorise (str, optional): whether to winsorise outliers. Defaults to "upper". Takes "upper", "lower",
+            "both" and "none" as values.
+            "upper": upper outliers are replaced with the upper bound and lower outliers are removed
+            "lower": lower outliers are replaced with the lower bound and upper outliers are removed
+            "both": upper outliers are replaced with the upper bound and lower outliers are replaced with the lower bound
+            "none": both lower and upper outliers are removed (rather than winsorised)
 
     Returns:
         pd.Dataframe: Suitable MCS-EPC data.
@@ -671,11 +681,12 @@ def process_data_before_modelling(
         enhanced_installations_data
     )
 
-    enhanced_installations_data = remove_samples_exclusion_criteria(
-        mcs_epc_data=enhanced_installations_data,
-        exclusion_criteria_dict=exclusion_criteria_dict,
-        winsorise=winsorise,
-    )
+    if remove_or_winsorise_samples:
+        enhanced_installations_data = remove_samples_exclusion_criteria(
+            mcs_epc_data=enhanced_installations_data,
+            exclusion_criteria_dict=exclusion_criteria_dict,
+            winsorise=winsorise,
+        )
 
     enhanced_installations_data = generate_df_adjusted_costs(
         mcs_epc_df=enhanced_installations_data, cpi_quarters_df=cpi_quarterly_df

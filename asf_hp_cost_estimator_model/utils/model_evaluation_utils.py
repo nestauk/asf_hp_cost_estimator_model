@@ -3,138 +3,153 @@ Util functions to compute/append/log metrics such as:
 - Mean Pinball Loss for lower and upper bounds
 - Coverage probability
 - Average, max, and min interval widths
+- Proportion of samples where median is below lower bound, above upper bound or outside bounds
+- Proportion of samples where median is closer to upper bound than lower bound
 """
 
 # package imports
 import numpy as np
-from sklearn.metrics import mean_pinball_loss, mean_absolute_error
+import os
+from sklearn.metrics import mean_pinball_loss
 import logging
+import matplotlib.pyplot as plt
 
-
-def append_metrics(
-    list_mean_minball_loss_lower_perc: list,
-    list_mean_minball_loss_upper_perc: list,
-    list_coverage: list,
-    list_avg_width: list,
-    y: np.array,
-    y_pred_upper: np.array,
-    y_pred_lower: np.array,
-    alpha_lower: float = 0.1,
-    alpha_upper: float = 0.9,
-) -> tuple:
-    """
-    Appends various metrics to the provided lists.
-
-    Args:
-        list_mean_minball_loss_lower_perc (list): list of mean pinball loss for lower bounds.
-        list_mean_minball_loss_upper_perc (list): list of mean pinball loss for upper bounds.
-        list_coverage (list): list of coverage probabilities.
-        list_avg_width (list): list of average interval widths.
-        y (np.array): true values of the target variable.
-        y_pred_upper (np.array): predicted upper bounds of the intervals.
-        y_pred_lower (np.array): predicted lower bounds of the intervals.
-        alpha_lower (float, optional): lower percentile. Defaults to 0.1.
-        alpha_upper (float, optional): upper percentile. Defaults to 0.9.
-
-    Returns:
-        tuple: lists containing mean pinball loss for lower and upper bounds, coverage probabilities, and average widths.
-    """
-    list_mean_minball_loss_lower_perc.append(
-        mean_pinball_loss(y, y_pred_lower, alpha=alpha_lower)
-    )
-    list_mean_minball_loss_upper_perc.append(
-        mean_pinball_loss(y, y_pred_upper, alpha=alpha_upper)
-    )
-    list_coverage.append(((y >= y_pred_lower) & (y <= y_pred_upper)).mean())
-    list_avg_width.append(np.mean(y_pred_upper - y_pred_lower))
-
-    return (
-        list_mean_minball_loss_lower_perc,
-        list_mean_minball_loss_upper_perc,
-        list_coverage,
-        list_avg_width,
-    )
+# local imports
+from asf_hp_cost_estimator_model import PROJECT_DIR
 
 
 def compute_metrics(
+    dataset_name: str,
     y: np.array,
     y_pred_upper: np.array,
     y_pred_lower: np.array,
+    y_pred_median: np.array,
     alpha_lower: float = 0.1,
     alpha_upper: float = 0.9,
-):
+    log_metrics: bool = True,
+    save_histogram: bool = False,
+) -> dict:
     """
     Computes and logs various metrics for evaluating prediction intervals.
 
     Args:
+        dataset_name (str): name of the dataset (e.g., 'train', 'validation', 'test').
         y (np.array): true values of the target variable.
         y_pred_upper (np.array): predicted upper bounds of the intervals.
         y_pred_lower (np.array): predicted lower bounds of the intervals.
+        y_pred_median (np.array): predicted median
         alpha_lower (float, optional): lower percentile. Defaults to 0.1.
         alpha_upper (float, optional): upper percentile. Defaults to 0.9.
+        save_histogram (bool, optional): whether to save histograms of interval widths and ratio of distances. Defaults to False.
+
+    Returns:
+        dict: dictionary containing main metrics.
     """
+    logging.info(f"----- MODEL EVALUATION RESULTS ON {dataset_name.upper()} -----")
 
+    main_metrics = {}
+
+    # Size of set
+    n = len(y)
+
+    # Our main metric to minimise: mean pinball loss
     mean_pinball_loss_lower_perc = mean_pinball_loss(y, y_pred_lower, alpha=alpha_lower)
-    logging.info(
-        f"Mean Pinball Loss for Lower Bound: {mean_pinball_loss_lower_perc:.4f}"
-    )
+    mean_pinball_loss_median = mean_pinball_loss(y, y_pred_median, alpha=0.5)
     mean_pinball_loss_upper_perc = mean_pinball_loss(y, y_pred_upper, alpha=alpha_upper)
-    logging.info(
-        f"Mean Pinball Loss for Upper Bound: {mean_pinball_loss_upper_perc:.4f}"
-    )
 
+    # Coverage probability: the proportion of true values that fall within the predicted intervals
     coverage = ((y >= y_pred_lower) & (y <= y_pred_upper)).mean()
-    logging.info(f"Coverage probability: {coverage:.2%}")
 
+    # Width of the prediction intervals
     avg_width = np.mean(y_pred_upper - y_pred_lower)
-    logging.info(f"Average Interval Width: {avg_width:.2f}")
-
     max_width = np.max(y_pred_upper - y_pred_lower)
-    logging.info(f"Max Interval Width: {max_width:.2f}")
-
     min_width = np.min(y_pred_upper - y_pred_lower)
-    logging.info(f"Min Interval Width: {min_width:.2f}")
 
-    # predictions where both bounds are below 8k
-    both_below_8k = (y_pred_lower < 8000) & (y_pred_upper < 8000)
-    logging.info(
-        f"Percentage of instances where both ends or range are below 8k: {np.mean(both_below_8k) * 100:.2f}%"
-    )
+    if save_histogram:
+        plt.hist(y_pred_upper - y_pred_lower, bins=30, edgecolor="black")
+        plt.title("Histogram of interval widths")
+        plt.xlabel("Interval width")
+        plt.ylabel("Frequency")
+        plt.savefig(
+            os.path.join(
+                PROJECT_DIR,
+                "outputs/figures",
+                f"histogram_interval_widths_{dataset_name}.png",
+            )
+        )
+        plt.close()
 
-    # predictions where lower bound is below 8k
-    lower_below_8k = y_pred_lower < 8000
-    logging.info(
-        f"Percentage of instances where lower bound is below 8k: {np.mean(lower_below_8k) * 100:.2f}%"
-    )
+    # Order of the predictions
+    median_below_lower = (y_pred_median < y_pred_lower).mean()
+    median_above_upper = (y_pred_median > y_pred_upper).mean()
+    median_outside_bounds = (
+        (y_pred_median < y_pred_lower) | (y_pred_median > y_pred_upper)
+    ).mean()
 
-    # average width of intervals for which lower bound is below 8k (but not the upper end) after replacing lower bound with 8k
-    lower_below_8k_upper_above = lower_below_8k & (y_pred_upper > 8000)
-    adjusted_lower_bound = np.where(lower_below_8k_upper_above, 8000, y_pred_lower)
-    adjusted_width = np.mean(
-        y_pred_upper - adjusted_lower_bound, where=lower_below_8k_upper_above
-    )
-    logging.info(
-        f"Average width of intervals where lower bound is below 8k after adjusting to 8k: {adjusted_width:.2f}"
-    )
+    # Average distance between the median prediction and the lower bound
+    distance_median_lower = y_pred_median - y_pred_lower
+    avg_distance_median_lower = np.mean(distance_median_lower)
 
-    # smallest interval after readjusting lower bound
-    smallest_interval = np.min(y_pred_upper - adjusted_lower_bound)
-    logging.info(
-        f"Smallest interval after adjusting lower bound to 8k: {smallest_interval:.2f}"
-    )
+    # Average distance between the median prediction and the upper bound
+    distance_median_upper = y_pred_upper - y_pred_median
+    avg_distance_median_upper = np.mean(distance_median_upper)
+    ratio = distance_median_lower / (distance_median_lower + distance_median_upper)
 
-    # largest interval after readjusting lower bound
-    largest_interval = np.max(y_pred_upper - adjusted_lower_bound)
-    logging.info(
-        f"Largest interval after adjusting lower bound to 8k: {largest_interval:.2f}"
-    )
+    if save_histogram:
+        plt.hist(ratio, bins=30, edgecolor="black")
+        plt.title("Histogram of ratio of distances")
+        plt.xlabel(
+            "Distance(median, lower bound) / Distance(lower bound, upper bound)\n>0.5 means median is closer to upper bound"
+        )
+        plt.ylabel("Frequency")
+        plt.savefig(
+            os.path.join(
+                PROJECT_DIR,
+                "outputs/figures",
+                f"histogram_ratio_distances_{dataset_name}.png",
+            )
+        )
+        plt.close()
 
-    logging.info(
-        "**Although not very meaningful, calculating mean absolute error for both bounds**"
-    )
+    if log_metrics:
+        logging.info(f"Number of samples: {n}")
+        logging.info(
+            f"Mean pinball loss for lower bound: {mean_pinball_loss_lower_perc:.4f}"
+        )
+        logging.info(f"Mean pinball loss for median: {mean_pinball_loss_median:.4f}")
+        logging.info(
+            f"Mean pinball loss for upper bound: {mean_pinball_loss_upper_perc:.4f}"
+        )
+        logging.info(f"Coverage probability: {coverage:.2%}")
+        logging.info(f"Average interval width: {avg_width:.2f}")
+        logging.info(f"Max interval width: {max_width:.2f}")
+        logging.info(f"Min interval width: {min_width:.2f}")
+        logging.warning(
+            f"Proportion of samples where median is below lower bound: {median_below_lower:.2%}"
+        )
+        logging.warning(
+            f"Proportion of samples where median is above upper bound: {median_above_upper:.2%}"
+        )
+        logging.warning(
+            f"Proportion of samples where median is outside bounds: {median_outside_bounds:.2%}"
+        )
+        logging.info(
+            f"Average distance between median and lower bound: {avg_distance_median_lower:.2f}"
+        )
+        logging.info(
+            f"Average distance between median and upper bound: {avg_distance_median_upper:.2f}"
+        )
+        logging.info(
+            f"Proportion of samples where median is closer to upper bound than lower bound: {(ratio > 0.5).mean():.2%}"
+        )
 
-    mae_upper = mean_absolute_error(y, y_pred_upper)
-    mae_lower = mean_absolute_error(y, y_pred_lower)
+    # Store main metrics in a dictionary
+    main_metrics["mean_pinball_loss_lower_q"] = mean_pinball_loss_lower_perc
+    main_metrics["mean_pinball_loss_upper_q"] = mean_pinball_loss_upper_perc
+    main_metrics["mean_pinball_loss_median"] = mean_pinball_loss_median
+    main_metrics["coverage"] = coverage
+    main_metrics["interval_width"] = avg_width
+    main_metrics["prop_samples_median_outside_bounds"] = median_outside_bounds
+    main_metrics["prop_samples_median_closer_to_upper_bound"] = (ratio > 0.5).mean()
 
-    logging.info(f"MAE for Upper Bound: {mae_upper:.4f}")
-    logging.info(f"MAE for Lower Bound: {mae_lower:.4f}")
+    return main_metrics
