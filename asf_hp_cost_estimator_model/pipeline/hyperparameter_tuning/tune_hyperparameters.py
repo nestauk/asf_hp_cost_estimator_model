@@ -331,6 +331,8 @@ def run_hyperparameter_tuning(
             y_pred_upper=predictions["upper"][key],
             alpha_lower=lower_quantile,
             alpha_upper=upper_quantile,
+            log_metrics=True,
+            save_histogram=True,
         )
 
     # Save the best hyperparameters and metrics to S3 if not in test mode
